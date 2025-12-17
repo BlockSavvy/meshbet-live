@@ -13,6 +13,8 @@
   "dependencies": {
     "@expo/metro-runtime": "~4.0.1",
     "@expo/vector-icons": "^14.0.0",
+    "@react-native-async-storage/async-storage": "1.23.1",
+    "@react-native-community/netinfo": "11.4.1",
     "@react-native-community/slider": "^4.5.0",
     "@react-navigation/native": "^7.0.0",
     "@walletconnect/modal-react-native": "^1.0.0",
@@ -33,11 +35,14 @@
     "react-dom": "18.3.1",
     "react-native": "0.76.0",
     "react-native-gesture-handler": "~2.20.0",
+    "react-native-get-random-values": "~1.11.0",
     "react-native-reanimated": "~3.16.0",
     "react-native-safe-area-context": "4.12.0",
     "react-native-screens": "~4.0.0",
+    "react-native-svg": "15.8.0",
     "react-native-web": "~0.19.13",
     "react-native-worklets-core": "^1.6.2",
+    "sharp": "^0.34.5",
     "tailwindcss": "^3.4.0"
   },
   "devDependencies": {
