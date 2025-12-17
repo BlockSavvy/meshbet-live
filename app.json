@@ -1,0 +1,55 @@
+{
+  "expo": {
+    "name": "MeshBet Live",
+    "slug": "meshbet-live",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "meshbet",
+    "userInterfaceStyle": "dark",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/images/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0a0a0a"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.meshbet.live",
+      "infoPlist": {
+        "NSBluetoothAlwaysUsageDescription": "MeshBet uses Bluetooth to discover nearby viewing parties",
+        "NSBluetoothPeripheralUsageDescription": "MeshBet uses Bluetooth to connect to mesh networks",
+        "NSLocationWhenInUseUsageDescription": "MeshBet uses location for geohash-based event discovery"
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#0a0a0a"
+      },
+      "package": "com.meshbet.live",
+      "permissions": [
+        "BLUETOOTH",
+        "BLUETOOTH_ADMIN",
+        "BLUETOOTH_SCAN",
+        "BLUETOOTH_CONNECT",
+        "BLUETOOTH_ADVERTISE",
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "MeshBet uses location for geohash-based event discovery"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
