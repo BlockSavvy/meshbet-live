@@ -74,6 +74,19 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="mesh"
+        options={{
+          title: "MESH",
+          tabBarIcon: ({ color, focused }) => (
+            <Ionicons
+              name={focused ? "radio" : "radio-outline"}
+              size={24}
+              color={color}
+            />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="profile"
         options={{
           title: "ME",
