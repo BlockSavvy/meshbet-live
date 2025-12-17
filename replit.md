@@ -5,7 +5,7 @@ A decentralized, offline-first mobile app for local sports/fights viewing partie
 ## Overview
 
 This is an Expo React Native application running in web mode on Replit. It features:
-- Expo SDK 52 with New Architecture enabled
+- Expo SDK 54 with New Architecture enabled
 - NativeWind (Tailwind CSS for React Native) styling
 - Expo Router (file-based routing)
 - React Native Reanimated for animations
