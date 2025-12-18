@@ -99,4 +99,5 @@ All buttons have subtle glow effects using shadow with primary color.
 - The app is configured to run in web mode for Replit compatibility
 - Some native features (Bluetooth mesh, native modules) are not available in web mode
 - Expo Go SDK 54+ is required for mobile testing
-- Placeholder images are used for logo and background assets
+- Custom RadarIcon component (SVG) used for MESH tab icon - matches Lucide Radar style
+- GitHub connector configured for BlockSavvy/meshbet-live repo access

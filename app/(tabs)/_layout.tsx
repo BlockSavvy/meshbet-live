@@ -1,6 +1,7 @@
 import { Tabs } from "expo-router";
 import { View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { RadarIcon } from "@/components/icons/RadarIcon";
 import { Colors } from "@/constants/Colors";
 
 export default function TabLayout() {
@@ -77,12 +78,8 @@ export default function TabLayout() {
         name="mesh"
         options={{
           title: "MESH",
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons
-              name={focused ? "wifi" : "wifi-outline"}
-              size={24}
-              color={color}
-            />
+          tabBarIcon: ({ color }) => (
+            <RadarIcon size={24} strokeWidth={2} color={color} />
           ),
         }}
       />
