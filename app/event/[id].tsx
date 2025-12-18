@@ -16,6 +16,7 @@ import { Colors } from "@/constants/Colors";
 import { bitchatService, BitchatMessage } from "@/lib/services/bitchat";
 import { bettingService, Bet } from "@/lib/services/betting";
 import { sportsDataService, SportEvent } from "@/lib/services/sportsData";
+import { streamingService, StreamMetadata } from "@/lib/services/streaming";
 
 interface ChatMessage {
   id: string;
@@ -34,6 +35,7 @@ export default function EventRoomScreen() {
   const [event, setEvent] = useState<SportEvent | null>(null);
   const [peerCount, setPeerCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [activeStreams, setActiveStreams] = useState<StreamMetadata[]>([]);
 
   const formatTimeAgo = (timestamp: number): string => {
     const now = Date.now();
@@ -77,10 +79,15 @@ export default function EventRoomScreen() {
       
       await bitchatService.hydratePeers();
       setPeerCount(bitchatService.connectedPeers.length);
+      setActiveStreams(streamingService.getActiveStreams());
       setLoading(false);
     };
 
     initialize();
+
+    const unsubStreams = streamingService.onStreamUpdate((streams) => {
+      setActiveStreams(streams);
+    });
 
     const unsubMessage = bitchatService.onMessage((msg: BitchatMessage) => {
       const chatMsg: ChatMessage = {
@@ -120,6 +127,7 @@ export default function EventRoomScreen() {
       unsubBet();
       unsubPeerConnect();
       unsubPeerDisconnect();
+      unsubStreams();
     };
   }, [id, loadEventData, loadBets]);
 
@@ -195,8 +203,44 @@ export default function EventRoomScreen() {
             className="absolute inset-0 w-full h-full"
             resizeMode="cover"
           />
-          <View className="absolute inset-0 bg-black/30" />
-          <Ionicons name="play-circle" size={64} color="rgba(255,255,255,0.8)" />
+          <View className="absolute inset-0 bg-black/50" />
+          
+          {activeStreams.length > 0 ? (
+            <View className="items-center">
+              <View className="flex-row items-center mb-2">
+                <View className="w-3 h-3 rounded-full bg-red-500 mr-2" />
+                <Text className="text-white font-bold">LIVE STREAM AVAILABLE</Text>
+              </View>
+              <Pressable
+                onPress={() => router.push(`/stream/${activeStreams[0].streamId}`)}
+                className="px-6 py-3 rounded-xl flex-row items-center gap-2"
+                style={{ backgroundColor: Colors.secondary }}
+              >
+                <Ionicons name="play" size={20} color={Colors.secondaryForeground} />
+                <Text className="font-bold" style={{ color: Colors.secondaryForeground }}>
+                  Watch Stream
+                </Text>
+              </Pressable>
+              <Text className="text-xs mt-2" style={{ color: Colors.mutedForeground }}>
+                {activeStreams[0].viewerCount} watching • {activeStreams[0].hostNickname}
+              </Text>
+            </View>
+          ) : (
+            <View className="items-center">
+              <Ionicons name="radio-outline" size={48} color="rgba(255,255,255,0.6)" />
+              <Text className="text-white font-bold mt-2">No Active Streams</Text>
+              <Pressable
+                onPress={() => router.push('/host-stream')}
+                className="mt-3 px-6 py-3 rounded-xl flex-row items-center gap-2"
+                style={{ backgroundColor: Colors.primary }}
+              >
+                <Ionicons name="radio" size={20} color={Colors.primaryForeground} />
+                <Text className="font-bold" style={{ color: Colors.primaryForeground }}>
+                  Start Streaming
+                </Text>
+              </Pressable>
+            </View>
+          )}
 
           <View
             className="absolute bottom-3 right-3 flex-row items-center px-2 py-1 rounded"
@@ -204,6 +248,16 @@ export default function EventRoomScreen() {
           >
             <View className="w-2 h-2 rounded-full bg-green-500 mr-2" />
             <Text className="text-xs text-white font-mono">{peerCount} peers connected</Text>
+          </View>
+          
+          <View
+            className="absolute bottom-3 left-3 flex-row items-center px-2 py-1 rounded"
+            style={{ backgroundColor: "rgba(0,0,0,0.7)" }}
+          >
+            <Ionicons name="radio" size={12} color={activeStreams.length > 0 ? Colors.secondary : Colors.mutedForeground} />
+            <Text className="text-xs ml-1" style={{ color: activeStreams.length > 0 ? Colors.secondary : Colors.mutedForeground }}>
+              {activeStreams.length} stream{activeStreams.length !== 1 ? 's' : ''}
+            </Text>
           </View>
         </View>
       </View>

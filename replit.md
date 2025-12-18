@@ -60,6 +60,8 @@ All screens now use real service layers:
 - **Event Room** - Real chat messages and bets via mesh
 - **Scan Modal** - Real peer discovery via bitchat
 - **Settings** - Persistent settings with AsyncStorage, wallet export, emergency wipe
+- **Stream Player** - P2P video stream viewer with buffer visualization
+- **Host Stream** - Start broadcasting to mesh network
 
 ## Project Structure
 
