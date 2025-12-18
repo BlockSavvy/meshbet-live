@@ -36,6 +36,7 @@ class BitchatService {
   private peerDisconnectedListeners: Set<PeerListener> = new Set();
   private statusListeners: Set<StatusListener> = new Set();
   private BitchatAPI: any = null;
+  public localPeerId: string = `peer_${Math.random().toString(36).substr(2, 8)}`;
 
   async initialize() {
     if (Platform.OS === 'web') {
