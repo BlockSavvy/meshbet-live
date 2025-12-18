@@ -20,7 +20,8 @@
       "infoPlist": {
         "NSBluetoothAlwaysUsageDescription": "MeshBet uses Bluetooth to discover nearby viewing parties",
         "NSBluetoothPeripheralUsageDescription": "MeshBet uses Bluetooth to connect to mesh networks",
-        "NSLocationWhenInUseUsageDescription": "MeshBet uses location for geohash-based event discovery"
+        "NSLocationWhenInUseUsageDescription": "MeshBet uses location for geohash-based event discovery",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
