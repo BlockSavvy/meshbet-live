@@ -1,74 +1,111 @@
 import { useEffect, useState, useRef } from "react";
-import { View, Text, Pressable, Animated } from "react-native";
+import { View, Text, Pressable, Animated, Platform } from "react-native";
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Header } from "@/components/layout/Header";
 import { Colors } from "@/constants/Colors";
+import { bitchatService, BitchatPeer } from "@/lib/services/bitchat";
 
-interface Peer {
-  id: string;
-  name: string;
+interface DisplayPeer extends BitchatPeer {
   strength: number;
-  users: number;
 }
 
 export default function MeshScanScreen() {
   const [scanning, setScanning] = useState(true);
-  const [peers, setPeers] = useState<Peer[]>([]);
+  const [peers, setPeers] = useState<DisplayPeer[]>([]);
   const pulseAnim = useRef(new Animated.Value(0)).current;
   const rotateAnim = useRef(new Animated.Value(0)).current;
+  const pulseRef = useRef<Animated.CompositeAnimation | null>(null);
+  const rotateRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  const convertRssiToStrength = (rssi?: number): number => {
+    if (!rssi) return 70;
+    const minRssi = -100;
+    const maxRssi = -30;
+    const strength = ((rssi - minRssi) / (maxRssi - minRssi)) * 100;
+    return Math.min(100, Math.max(0, Math.round(strength)));
+  };
+
+  useEffect(() => {
+    const startScan = async () => {
+      if (!bitchatService.running) {
+        await bitchatService.startServices('MeshBet_User');
+      }
+      await bitchatService.startDiscovery();
+    };
+
+    startScan();
+
+    const unsubPeer = bitchatService.onPeerConnected((peer) => {
+      const displayPeer: DisplayPeer = {
+        ...peer,
+        strength: convertRssiToStrength(peer.rssi),
+      };
+      setPeers((prev) => {
+        if (prev.find(p => p.peerID === peer.peerID)) return prev;
+        return [...prev, displayPeer];
+      });
+    });
+
+    const unsubDisconnect = bitchatService.onPeerDisconnected((peer) => {
+      setPeers((prev) => prev.filter(p => p.peerID !== peer.peerID));
+    });
+
+    const unsubStatus = bitchatService.onStatusChange((status) => {
+      if (status === 'connected') {
+        setTimeout(() => setScanning(false), 3000);
+      }
+    });
+
+    const scanTimeout = setTimeout(() => setScanning(false), 8000);
+
+    return () => {
+      unsubPeer();
+      unsubDisconnect();
+      unsubStatus();
+      clearTimeout(scanTimeout);
+    };
+  }, []);
 
   useEffect(() => {
     if (scanning) {
-      Animated.loop(
+      pulseRef.current = Animated.loop(
         Animated.timing(pulseAnim, {
           toValue: 1,
           duration: 2000,
           useNativeDriver: true,
         })
-      ).start();
+      );
+      pulseRef.current.start();
 
-      Animated.loop(
+      rotateRef.current = Animated.loop(
         Animated.timing(rotateAnim, {
           toValue: 1,
           duration: 3000,
           useNativeDriver: true,
         })
-      ).start();
+      );
+      rotateRef.current.start();
+    } else {
+      pulseRef.current?.stop();
+      rotateRef.current?.stop();
     }
+
+    return () => {
+      pulseRef.current?.stop();
+      rotateRef.current?.stop();
+    };
   }, [scanning]);
 
-  useEffect(() => {
-    const timeouts = [
-      setTimeout(
-        () =>
-          setPeers((p) => [
-            ...p,
-            { id: "Node_A7x", strength: 90, name: "Bar 2049 Main", users: 42 },
-          ]),
-        1500
-      ),
-      setTimeout(
-        () =>
-          setPeers((p) => [
-            ...p,
-            { id: "Node_B9y", strength: 65, name: "Mike's Tailgate", users: 12 },
-          ]),
-        2500
-      ),
-      setTimeout(
-        () =>
-          setPeers((p) => [
-            ...p,
-            { id: "Node_C2z", strength: 40, name: "Underground FC", users: 156 },
-          ]),
-        4000
-      ),
-      setTimeout(() => setScanning(false), 5000),
-    ];
-    return () => timeouts.forEach(clearTimeout);
-  }, []);
+  const handleRescan = async () => {
+    setPeers([]);
+    setScanning(true);
+    pulseAnim.setValue(0);
+    rotateAnim.setValue(0);
+    await bitchatService.startDiscovery();
+    setTimeout(() => setScanning(false), 8000);
+  };
 
   const pulseScale = pulseAnim.interpolate({
     inputRange: [0, 1],
@@ -96,6 +133,14 @@ export default function MeshScanScreen() {
       <Header title="MESH SCANNER" showBack />
 
       <View className="flex-1 px-6">
+        {Platform.OS === 'web' && (
+          <View className="mx-4 mb-4 px-4 py-2 rounded-lg" style={{ backgroundColor: `${Colors.yellow}20` }}>
+            <Text className="text-xs text-center" style={{ color: Colors.yellow }}>
+              Web Preview Mode - Real Bluetooth requires native build
+            </Text>
+          </View>
+        )}
+
         <View className="items-center py-10">
           <View className="w-64 h-64 items-center justify-center">
             <View
@@ -171,73 +216,62 @@ export default function MeshScanScreen() {
 
         <View className="items-center mb-8">
           <Text className="text-xl font-bold text-white">
-            {scanning ? "Scanning..." : `Found ${peers.length} Peers`}
+            {scanning ? "Scanning..." : `Found ${peers.length} Peer${peers.length !== 1 ? 's' : ''}`}
           </Text>
           <Text className="text-sm mt-1" style={{ color: Colors.mutedForeground }}>
             {scanning
               ? "Discovering Bitchat mesh nodes nearby"
-              : "Select a room to join"}
+              : peers.length > 0 ? "Select a peer to connect" : "No peers found nearby"}
           </Text>
         </View>
 
         <View className="flex-1">
-          {peers.map((peer, index) => (
-            <Animated.View
-              key={peer.id}
+          {peers.map((peer) => (
+            <Pressable
+              key={peer.peerID}
+              onPress={() => router.push(`/event/${peer.peerID}`)}
+              className="flex-row items-center p-4 rounded-xl mb-3"
               style={{
-                opacity: 1,
-                transform: [{ translateY: 0 }],
+                backgroundColor: Colors.card,
+                borderWidth: 1,
+                borderColor: `${getStrengthColor(peer.strength)}30`,
               }}
             >
-              <Pressable
-                onPress={() => router.push(`/event/${index + 1}`)}
-                className="flex-row items-center p-4 rounded-xl mb-3"
+              <View
+                className="w-10 h-10 rounded-full items-center justify-center mr-3"
                 style={{
-                  backgroundColor: Colors.card,
-                  borderWidth: 1,
-                  borderColor: "rgba(255,255,255,0.1)",
+                  backgroundColor: `${getStrengthColor(peer.strength)}20`,
                 }}
               >
-                <View
-                  className="w-10 h-10 rounded-full items-center justify-center mr-3"
-                  style={{
-                    backgroundColor: `${getStrengthColor(peer.strength)}20`,
-                  }}
-                >
-                  <Ionicons
-                    name="radio"
-                    size={20}
-                    color={getStrengthColor(peer.strength)}
-                  />
+                <Ionicons
+                  name="radio"
+                  size={20}
+                  color={getStrengthColor(peer.strength)}
+                />
+              </View>
+              <View className="flex-1">
+                <Text className="font-bold text-white">{peer.nickname}</Text>
+                <View className="flex-row items-center gap-2 mt-1">
+                  <Text className="text-xs" style={{ color: Colors.mutedForeground }}>
+                    {peer.peerID.slice(0, 12)}...
+                  </Text>
+                  <Text style={{ color: Colors.mutedForeground }}>•</Text>
+                  <Text
+                    className="text-xs"
+                    style={{ color: getStrengthColor(peer.strength) }}
+                  >
+                    {peer.strength}% signal
+                  </Text>
                 </View>
-                <View className="flex-1">
-                  <Text className="font-bold text-white">{peer.name}</Text>
-                  <View className="flex-row items-center gap-2 mt-1">
-                    <Ionicons name="people" size={12} color={Colors.mutedForeground} />
-                    <Text className="text-xs" style={{ color: Colors.mutedForeground }}>
-                      {peer.users} users
-                    </Text>
-                    <Text style={{ color: Colors.mutedForeground }}>•</Text>
-                    <Text
-                      className="text-xs"
-                      style={{ color: getStrengthColor(peer.strength) }}
-                    >
-                      {peer.strength}% signal
-                    </Text>
-                  </View>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={Colors.mutedForeground} />
-              </Pressable>
-            </Animated.View>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color={Colors.mutedForeground} />
+            </Pressable>
           ))}
         </View>
 
         {!scanning && (
           <Pressable
-            onPress={() => {
-              setPeers([]);
-              setScanning(true);
-            }}
+            onPress={handleRescan}
             className="h-14 rounded-xl items-center justify-center mb-6"
             style={{
               backgroundColor: Colors.primary,

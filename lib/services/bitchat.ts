@@ -266,6 +266,10 @@ class BitchatService {
   get peerCount() {
     return this.peers.size;
   }
+
+  get connectedPeers(): BitchatPeer[] {
+    return Array.from(this.peers.values());
+  }
 }
 
 export const bitchatService = new BitchatService();

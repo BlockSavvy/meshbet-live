@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   View,
   Text,
@@ -13,23 +13,158 @@ import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "@/constants/Colors";
+import { bitchatService, BitchatMessage } from "@/lib/services/bitchat";
+import { bettingService, Bet } from "@/lib/services/betting";
+import { sportsDataService, SportEvent } from "@/lib/services/sportsData";
 
-const mockMessages = [
-  { id: 1, user: "NeonRider", text: "Pereira looking sharp! 🔥", time: "2m ago" },
-  { id: 2, user: "CryptoKing", text: "Adesanya gonna catch him", time: "1m ago" },
-  { id: 3, user: "MeshBoss", text: "Taking all bets on Round 2 KO", time: "30s ago" },
-];
-
-const mockBets = [
-  { id: 1, prop: "Pereira via KO", odds: "+150", pool: "$2,500" },
-  { id: 2, prop: "Goes to Decision", odds: "+200", pool: "$1,200" },
-  { id: 3, prop: "Round 3 Finish", odds: "+350", pool: "$800" },
-];
+interface ChatMessage {
+  id: string;
+  user: string;
+  text: string;
+  time: string;
+  isSelf: boolean;
+}
 
 export default function EventRoomScreen() {
-  const { id } = useLocalSearchParams();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const [activeTab, setActiveTab] = useState<"chat" | "bets" | "stats">("chat");
   const [message, setMessage] = useState("");
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [bets, setBets] = useState<Bet[]>([]);
+  const [event, setEvent] = useState<SportEvent | null>(null);
+  const [peerCount, setPeerCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  const formatTimeAgo = (timestamp: number): string => {
+    const now = Date.now();
+    const diff = now - timestamp;
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+
+    if (seconds < 60) return `${seconds}s ago`;
+    if (minutes < 60) return `${minutes}m ago`;
+    return `${hours}h ago`;
+  };
+
+  const loadEventData = useCallback(async () => {
+    try {
+      const events = await sportsDataService.getUpcomingEvents('upcoming');
+      const matchedEvent = events.find(e => e.id === id);
+      if (matchedEvent) {
+        setEvent(matchedEvent);
+      }
+    } catch (error) {
+      console.error('Failed to load event:', error);
+    }
+  }, [id]);
+
+  const loadBets = useCallback(() => {
+    const allBets = bettingService.getAllBets();
+    const eventBets = id ? allBets.filter(b => b.eventId === id) : allBets.slice(0, 10);
+    setBets(eventBets);
+  }, [id]);
+
+  useEffect(() => {
+    const initialize = async () => {
+      setLoading(true);
+      await loadEventData();
+      loadBets();
+      
+      if (!bitchatService.running) {
+        await bitchatService.startServices('MeshBet_User');
+      }
+      
+      setPeerCount(bitchatService.connectedPeers.length);
+      setLoading(false);
+    };
+
+    initialize();
+
+    const unsubMessage = bitchatService.onMessage((msg: BitchatMessage) => {
+      if (msg.channel === `#event_${id}` || msg.channel === '#general') {
+        const chatMsg: ChatMessage = {
+          id: msg.id,
+          user: msg.senderNickname || msg.sender.slice(0, 8),
+          text: msg.content,
+          time: formatTimeAgo(msg.timestamp),
+          isSelf: msg.sender === 'self',
+        };
+        setMessages((prev) => [...prev, chatMsg]);
+      }
+    });
+
+    const unsubBet = bettingService.onBetUpdate((bet) => {
+      if (!id || bet.eventId === id) {
+        setBets((prev) => {
+          const existing = prev.findIndex(b => b.id === bet.id);
+          if (existing >= 0) {
+            const updated = [...prev];
+            updated[existing] = bet;
+            return updated;
+          }
+          return [...prev, bet];
+        });
+      }
+    });
+
+    const unsubPeerConnect = bitchatService.onPeerConnected(() => {
+      setPeerCount(bitchatService.connectedPeers.length);
+    });
+
+    const unsubPeerDisconnect = bitchatService.onPeerDisconnected(() => {
+      setPeerCount(bitchatService.connectedPeers.length);
+    });
+
+    return () => {
+      unsubMessage();
+      unsubBet();
+      unsubPeerConnect();
+      unsubPeerDisconnect();
+    };
+  }, [id, loadEventData, loadBets]);
+
+  const sendMessage = async () => {
+    if (!message.trim()) return;
+    
+    const channel = id ? `#event_${id}` : '#general';
+    const success = await bitchatService.sendMessage(message.trim(), channel);
+    
+    if (success) {
+      setMessage("");
+    }
+  };
+
+  const acceptBet = async (bet: Bet) => {
+    try {
+      await bettingService.acceptBet(bet.id);
+    } catch (error) {
+      console.error('Failed to accept bet:', error);
+    }
+  };
+
+  const getEventTitle = () => {
+    if (event) {
+      return `${event.homeTeam} vs ${event.awayTeam}`;
+    }
+    return "Event Room";
+  };
+
+  const getEventSubtitle = () => {
+    if (event) {
+      return event.sportTitle;
+    }
+    return "Live Event";
+  };
+
+  const getTotalPool = () => {
+    const total = bets.reduce((sum, bet) => sum + bet.amount, 0);
+    return `$${total.toLocaleString()}`;
+  };
+
+  const getOddsDisplay = (bet: Bet) => {
+    return sportsDataService.formatOdds(bet.odds);
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top"]}>
@@ -41,7 +176,9 @@ export default function EventRoomScreen() {
         >
           <Ionicons name="arrow-back" size={20} color={Colors.foreground} />
         </Pressable>
-        <Text className="text-lg font-bold text-white">UFC 305</Text>
+        <Text className="text-lg font-bold text-white" numberOfLines={1}>
+          {event?.sportTitle || "Event Room"}
+        </Text>
         <Pressable
           className="w-10 h-10 rounded-full items-center justify-center"
           style={{ backgroundColor: "rgba(255,255,255,0.1)" }}
@@ -67,28 +204,34 @@ export default function EventRoomScreen() {
             className="absolute bottom-3 right-3 flex-row items-center px-2 py-1 rounded"
             style={{ backgroundColor: "rgba(0,0,0,0.7)" }}
           >
-            <View className="w-2 h-2 rounded-full bg-red-500 mr-2" />
-            <Text className="text-xs text-white font-mono">1,240 watching</Text>
+            <View className="w-2 h-2 rounded-full bg-green-500 mr-2" />
+            <Text className="text-xs text-white font-mono">{peerCount} peers connected</Text>
           </View>
         </View>
       </View>
 
       <View className="px-4 mb-2 flex-row justify-between items-center">
-        <View>
-          <Text className="text-2xl font-bold text-white">
-            PEREIRA <Text style={{ color: Colors.mutedForeground }}>vs</Text> ADESANYA
+        <View className="flex-1 mr-4">
+          <Text className="text-xl font-bold text-white" numberOfLines={1}>
+            {getEventTitle()}
           </Text>
           <View className="flex-row items-center gap-2 mt-1">
             <Text className="text-xs font-mono" style={{ color: Colors.primary }}>
-              LIGHT HEAVYWEIGHT
+              {getEventSubtitle()}
             </Text>
-            <Text style={{ color: Colors.mutedForeground }}>•</Text>
-            <Text className="text-xs text-red-500">LIVE</Text>
+            {event && (
+              <>
+                <Text style={{ color: Colors.mutedForeground }}>•</Text>
+                <Text className="text-xs" style={{ color: Colors.green }}>
+                  {sportsDataService.formatTime(event.commenceTime)}
+                </Text>
+              </>
+            )}
             <Text style={{ color: Colors.mutedForeground }}>•</Text>
             <View className="flex-row items-center">
               <Ionicons name="flash" size={10} color={Colors.secondary} />
               <Text className="text-xs ml-1" style={{ color: Colors.secondary }}>
-                HYBRID RELAY
+                P2P MESH
               </Text>
             </View>
           </View>
@@ -98,7 +241,7 @@ export default function EventRoomScreen() {
             Pool Value
           </Text>
           <Text className="font-mono font-bold text-lg" style={{ color: Colors.green }}>
-            $42,590
+            {getTotalPool()}
           </Text>
         </View>
       </View>
@@ -160,19 +303,32 @@ export default function EventRoomScreen() {
           {activeTab === "chat" && (
             <View className="flex-1">
               <ScrollView className="flex-1 px-4" showsVerticalScrollIndicator={false}>
-                {mockMessages.map((msg) => (
-                  <View key={msg.id} className="mb-3">
-                    <View className="flex-row items-center gap-2 mb-1">
-                      <Text className="font-bold text-sm" style={{ color: Colors.primary }}>
-                        {msg.user}
-                      </Text>
-                      <Text className="text-xs" style={{ color: Colors.mutedForeground }}>
-                        {msg.time}
-                      </Text>
-                    </View>
-                    <Text className="text-white">{msg.text}</Text>
+                {messages.length === 0 ? (
+                  <View className="flex-1 items-center justify-center py-10">
+                    <Ionicons name="chatbubbles-outline" size={48} color={Colors.mutedForeground} />
+                    <Text className="text-white font-bold mt-4">No Messages Yet</Text>
+                    <Text className="text-center mt-2" style={{ color: Colors.mutedForeground }}>
+                      Start chatting with peers in this event room
+                    </Text>
                   </View>
-                ))}
+                ) : (
+                  messages.map((msg) => (
+                    <View key={msg.id} className="mb-3">
+                      <View className="flex-row items-center gap-2 mb-1">
+                        <Text 
+                          className="font-bold text-sm" 
+                          style={{ color: msg.isSelf ? Colors.secondary : Colors.primary }}
+                        >
+                          {msg.isSelf ? 'You' : msg.user}
+                        </Text>
+                        <Text className="text-xs" style={{ color: Colors.mutedForeground }}>
+                          {msg.time}
+                        </Text>
+                      </View>
+                      <Text className="text-white">{msg.text}</Text>
+                    </View>
+                  ))
+                )}
               </ScrollView>
 
               <View className="flex-row items-center px-4 py-3 gap-2">
@@ -188,8 +344,11 @@ export default function EventRoomScreen() {
                     borderColor: "rgba(255,255,255,0.1)",
                     color: Colors.foreground,
                   }}
+                  onSubmitEditing={sendMessage}
+                  returnKeyType="send"
                 />
                 <Pressable
+                  onPress={sendMessage}
                   className="w-12 h-12 rounded-xl items-center justify-center"
                   style={{ backgroundColor: Colors.primary }}
                 >
@@ -202,32 +361,66 @@ export default function EventRoomScreen() {
           {activeTab === "bets" && (
             <View className="flex-1 px-4">
               <ScrollView showsVerticalScrollIndicator={false}>
-                {mockBets.map((bet) => (
-                  <View
-                    key={bet.id}
-                    className="flex-row items-center justify-between p-4 rounded-xl mb-3"
-                    style={{
-                      backgroundColor: "rgba(0,0,0,0.3)",
-                      borderWidth: 1,
-                      borderColor: "rgba(255,255,255,0.1)",
-                    }}
-                  >
-                    <View>
-                      <Text className="font-bold text-white">{bet.prop}</Text>
-                      <Text className="text-xs" style={{ color: Colors.mutedForeground }}>
-                        Pool: {bet.pool}
-                      </Text>
-                    </View>
-                    <Pressable
-                      className="px-4 py-2 rounded-lg"
-                      style={{ backgroundColor: Colors.primary }}
-                    >
-                      <Text className="font-bold" style={{ color: Colors.primaryForeground }}>
-                        {bet.odds}
-                      </Text>
-                    </Pressable>
+                {bets.length === 0 ? (
+                  <View className="flex-1 items-center justify-center py-10">
+                    <Ionicons name="trophy-outline" size={48} color={Colors.mutedForeground} />
+                    <Text className="text-white font-bold mt-4">No Bets Yet</Text>
+                    <Text className="text-center mt-2" style={{ color: Colors.mutedForeground }}>
+                      Create the first bet for this event
+                    </Text>
                   </View>
-                ))}
+                ) : (
+                  bets.map((bet) => (
+                    <View
+                      key={bet.id}
+                      className="p-4 rounded-xl mb-3"
+                      style={{
+                        backgroundColor: "rgba(0,0,0,0.3)",
+                        borderWidth: 1,
+                        borderColor: bet.status === 'open' ? `${Colors.primary}30` : "rgba(255,255,255,0.1)",
+                      }}
+                    >
+                      <View className="flex-row items-center justify-between mb-2">
+                        <View className="flex-1">
+                          <Text className="font-bold text-white">{bet.proposition}</Text>
+                          <Text className="text-xs mt-1" style={{ color: Colors.mutedForeground }}>
+                            by {bet.creator.nickname} • ${bet.amount}
+                          </Text>
+                        </View>
+                        <View 
+                          className="px-2 py-1 rounded"
+                          style={{ backgroundColor: bet.status === 'open' ? `${Colors.green}20` : `${Colors.mutedForeground}20` }}
+                        >
+                          <Text className="text-xs font-bold uppercase" style={{ 
+                            color: bet.status === 'open' ? Colors.green : Colors.mutedForeground 
+                          }}>
+                            {bet.status}
+                          </Text>
+                        </View>
+                      </View>
+                      
+                      {bet.status === 'open' && bet.creator.peerId !== bitchatService.localPeerId && (
+                        <Pressable
+                          onPress={() => acceptBet(bet)}
+                          className="py-2 rounded-lg items-center mt-2"
+                          style={{ backgroundColor: Colors.primary }}
+                        >
+                          <Text className="font-bold" style={{ color: Colors.primaryForeground }}>
+                            Accept @ {getOddsDisplay(bet)}
+                          </Text>
+                        </Pressable>
+                      )}
+                      
+                      {bet.status === 'open' && bet.creator.peerId === bitchatService.localPeerId && (
+                        <View className="py-2 rounded-lg items-center mt-2" style={{ backgroundColor: `${Colors.secondary}20` }}>
+                          <Text className="font-bold" style={{ color: Colors.secondary }}>
+                            Your Bet @ {getOddsDisplay(bet)}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+                  ))
+                )}
               </ScrollView>
 
               <Pressable
@@ -253,12 +446,56 @@ export default function EventRoomScreen() {
           )}
 
           {activeTab === "stats" && (
-            <View className="flex-1 items-center justify-center px-6">
-              <Ionicons name="stats-chart" size={48} color={Colors.mutedForeground} />
-              <Text className="text-white font-bold text-lg mt-4">Live Stats</Text>
-              <Text className="text-center mt-2" style={{ color: Colors.mutedForeground }}>
-                Real-time fight statistics coming soon
-              </Text>
+            <View className="flex-1 px-4 py-6">
+              <View className="flex-row gap-3 mb-4">
+                <View className="flex-1 p-4 rounded-xl" style={{ backgroundColor: `${Colors.primary}10` }}>
+                  <Text className="text-xs" style={{ color: Colors.mutedForeground }}>Active Bets</Text>
+                  <Text className="text-2xl font-bold" style={{ color: Colors.primary }}>
+                    {bets.filter(b => b.status === 'open' || b.status === 'accepted').length}
+                  </Text>
+                </View>
+                <View className="flex-1 p-4 rounded-xl" style={{ backgroundColor: `${Colors.secondary}10` }}>
+                  <Text className="text-xs" style={{ color: Colors.mutedForeground }}>Peers</Text>
+                  <Text className="text-2xl font-bold" style={{ color: Colors.secondary }}>
+                    {peerCount}
+                  </Text>
+                </View>
+              </View>
+              
+              <View className="flex-row gap-3 mb-4">
+                <View className="flex-1 p-4 rounded-xl" style={{ backgroundColor: `${Colors.green}10` }}>
+                  <Text className="text-xs" style={{ color: Colors.mutedForeground }}>Total Pool</Text>
+                  <Text className="text-2xl font-bold" style={{ color: Colors.green }}>
+                    {getTotalPool()}
+                  </Text>
+                </View>
+                <View className="flex-1 p-4 rounded-xl" style={{ backgroundColor: "rgba(255,255,255,0.05)" }}>
+                  <Text className="text-xs" style={{ color: Colors.mutedForeground }}>Messages</Text>
+                  <Text className="text-2xl font-bold text-white">
+                    {messages.length}
+                  </Text>
+                </View>
+              </View>
+
+              {event && (
+                <View className="p-4 rounded-xl" style={{ backgroundColor: Colors.card }}>
+                  <Text className="font-bold text-white mb-2">Event Details</Text>
+                  <View className="gap-2">
+                    <View className="flex-row justify-between">
+                      <Text style={{ color: Colors.mutedForeground }}>Sport</Text>
+                      <Text className="text-white">{event.sportTitle}</Text>
+                    </View>
+                    <View className="flex-row justify-between">
+                      <Text style={{ color: Colors.mutedForeground }}>Start Time</Text>
+                      <Text className="text-white">{sportsDataService.formatTime(event.commenceTime)}</Text>
+                    </View>
+                    <View className="flex-row justify-between">
+                      <Text style={{ color: Colors.mutedForeground }}>Status</Text>
+                      <Text style={{ color: Colors.green }}>Active</Text>
+                    </View>
+                  </View>
+                </View>
+              )}
             </View>
           )}
         </View>
