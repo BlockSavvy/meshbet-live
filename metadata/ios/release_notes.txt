@@ -1,0 +1,41 @@
+Version 1.0.0 - Initial Release
+
+Welcome to MeshBet Live! This first release includes:
+
+• Bluetooth Mesh Networking
+  - Connect with nearby devices without internet
+  - Automatic peer discovery and connection
+  - Real-time status updates
+
+• Cryptocurrency Wallet
+  - Generate secure HD wallet with 12-word recovery phrase
+  - Sign bets cryptographically
+  - Export and backup your wallet
+
+• Live Sports Betting
+  - Real-time odds for UFC, NFL, NBA, MLB, NHL, and Soccer
+  - Create and accept peer-to-peer bets
+  - View betting history and statistics
+
+• P2P Video Streaming
+  - Host live streams to your viewing party
+  - Watch streams from connected peers
+  - Quality selection (Low/Medium/High)
+
+• Push Notifications
+  - Get notified when you receive bet proposals
+  - Alerts when bets are accepted or settled
+  - Stream notifications from your network
+
+• On-Chain Transactions
+  - Send and receive cryptocurrency
+  - Escrow support for bet stakes
+  - Transaction history tracking
+
+Coming soon:
+- Multi-chain support
+- Enhanced streaming quality
+- Group betting pools
+- Social features
+
+Thank you for being an early adopter of MeshBet Live!

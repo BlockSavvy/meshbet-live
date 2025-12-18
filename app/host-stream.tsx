@@ -11,11 +11,13 @@ import {
 import { router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { CameraView, useCameraPermissions } from "expo-camera";
 import { Header } from "@/components/layout/Header";
 import { Colors } from "@/constants/Colors";
 import { streamingService, StreamMetadata } from "@/lib/services/streaming";
 import { bitchatService } from "@/lib/services/bitchat";
 import { sportsDataService, SportEvent } from "@/lib/services/sportsData";
+import { notificationService } from "@/lib/services/notifications";
 
 type Quality = 'low' | 'medium' | 'high';
 
@@ -27,7 +29,12 @@ export default function HostStreamScreen() {
   const [events, setEvents] = useState<SportEvent[]>([]);
   const [stream, setStream] = useState<StreamMetadata | null>(null);
   const [peerCount, setPeerCount] = useState(0);
+  const [cameraFacing, setCameraFacing] = useState<'front' | 'back'>('back');
+  const [elapsedTime, setElapsedTime] = useState(0);
   const pulseAnim = useRef(new Animated.Value(1)).current;
+  const cameraRef = useRef<any>(null);
+  
+  const [permission, requestPermission] = useCameraPermissions();
 
   useEffect(() => {
     const loadEvents = async () => {
@@ -53,18 +60,35 @@ export default function HostStreamScreen() {
   }, []);
 
   useEffect(() => {
-    if (step === 'streaming') {
+    let interval: ReturnType<typeof setInterval> | undefined;
+    
+    if (step === 'streaming' && stream) {
       Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, { toValue: 1.3, duration: 800, useNativeDriver: true }),
           Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
         ])
       ).start();
+      
+      interval = setInterval(() => {
+        setElapsedTime(Math.floor((Date.now() - stream.startedAt) / 1000));
+      }, 1000);
     }
-  }, [step]);
+    
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [step, stream]);
 
   const startStream = async () => {
     if (!title.trim()) return;
+
+    if (Platform.OS !== 'web' && !permission?.granted) {
+      const result = await requestPermission();
+      if (!result.granted) {
+        return;
+      }
+    }
 
     const metadata = await streamingService.startStream({
       title: title.trim(),
@@ -75,6 +99,8 @@ export default function HostStreamScreen() {
     if (metadata) {
       setStream(metadata);
       setStep('streaming');
+      
+      await notificationService.notifyStreamStarted('You', title.trim());
     }
   };
 
@@ -83,6 +109,10 @@ export default function HostStreamScreen() {
       await streamingService.stopStream(stream.streamId);
       router.back();
     }
+  };
+
+  const toggleCamera = () => {
+    setCameraFacing(current => current === 'back' ? 'front' : 'back');
   };
 
   const getQualityInfo = (q: Quality) => {
@@ -94,109 +124,196 @@ export default function HostStreamScreen() {
   };
 
   const formatDuration = () => {
-    if (!stream) return '00:00';
-    const elapsed = Math.floor((Date.now() - stream.startedAt) / 1000);
-    const minutes = Math.floor(elapsed / 60);
-    const seconds = elapsed % 60;
+    const minutes = Math.floor(elapsedTime / 60);
+    const seconds = elapsedTime % 60;
     return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
   if (step === 'streaming') {
+    const isNative = Platform.OS !== 'web';
+    
     return (
-      <SafeAreaView className="flex-1 bg-background" edges={["top"]}>
+      <SafeAreaView className="flex-1 bg-black" edges={["top"]}>
         <View className="flex-1">
-          <View className="flex-row items-center justify-between px-4 h-14">
-            <View className="flex-row items-center gap-2">
-              <View className="w-3 h-3 rounded-full bg-red-500" />
-              <Text className="text-white font-bold">LIVE</Text>
-            </View>
-            <Text className="text-white font-mono">{formatDuration()}</Text>
-            <Pressable
-              onPress={stopStream}
-              className="px-4 py-2 rounded-lg"
-              style={{ backgroundColor: '#ef4444' }}
+          {isNative && permission?.granted ? (
+            <CameraView
+              ref={cameraRef}
+              style={{ flex: 1 }}
+              facing={cameraFacing}
             >
-              <Text className="text-white font-bold">END</Text>
-            </Pressable>
-          </View>
-
-          <View className="flex-1 items-center justify-center px-6">
-            <Animated.View
-              style={{
-                transform: [{ scale: pulseAnim }],
-              }}
-            >
-              <View 
-                className="w-32 h-32 rounded-full items-center justify-center"
-                style={{ 
-                  backgroundColor: `${Colors.secondary}20`,
-                  borderWidth: 3,
-                  borderColor: Colors.secondary,
-                }}
-              >
-                <Ionicons name="radio" size={64} color={Colors.secondary} />
-              </View>
-            </Animated.View>
-
-            <Text className="text-2xl font-bold text-white mt-6">
-              Broadcasting
-            </Text>
-            <Text className="text-lg mt-2" style={{ color: Colors.mutedForeground }}>
-              {stream?.title}
-            </Text>
-
-            {Platform.OS === 'web' && (
-              <View className="mt-4 px-4 py-2 rounded-lg" style={{ backgroundColor: `${Colors.yellow}20` }}>
-                <Text className="text-xs text-center" style={{ color: Colors.yellow }}>
-                  Web Preview - Camera access requires native build
-                </Text>
-              </View>
-            )}
-
-            <View className="flex-row gap-6 mt-8">
-              <View className="items-center">
-                <Text className="text-3xl font-bold" style={{ color: Colors.primary }}>
-                  {stream?.viewerCount || 0}
-                </Text>
-                <Text className="text-xs mt-1" style={{ color: Colors.mutedForeground }}>Viewers</Text>
-              </View>
-              <View className="w-px" style={{ backgroundColor: Colors.mutedForeground }} />
-              <View className="items-center">
-                <Text className="text-3xl font-bold" style={{ color: Colors.green }}>
-                  {peerCount}
-                </Text>
-                <Text className="text-xs mt-1" style={{ color: Colors.mutedForeground }}>Peers</Text>
-              </View>
-              <View className="w-px" style={{ backgroundColor: Colors.mutedForeground }} />
-              <View className="items-center">
-                <Text className="text-3xl font-bold" style={{ color: Colors.secondary }}>
-                  {stream?.fps || 24}
-                </Text>
-                <Text className="text-xs mt-1" style={{ color: Colors.mutedForeground }}>FPS</Text>
-              </View>
-            </View>
-
-            <View 
-              className="w-full mt-10 p-4 rounded-xl"
-              style={{ backgroundColor: Colors.card }}
-            >
-              <Text className="font-bold text-white mb-3">Stream Info</Text>
-              <View className="gap-2">
-                <View className="flex-row justify-between">
-                  <Text style={{ color: Colors.mutedForeground }}>Quality</Text>
-                  <Text className="text-white">{stream?.quality?.toUpperCase()}</Text>
+              <View className="flex-1">
+                <View 
+                  className="flex-row items-center justify-between px-4 pt-2 pb-2"
+                  style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+                >
+                  <View className="flex-row items-center gap-2">
+                    <Animated.View
+                      style={{
+                        transform: [{ scale: pulseAnim }],
+                      }}
+                    >
+                      <View className="w-3 h-3 rounded-full bg-red-500" />
+                    </Animated.View>
+                    <Text className="text-white font-bold">LIVE</Text>
+                  </View>
+                  <Text className="text-white font-mono text-lg">{formatDuration()}</Text>
+                  <Pressable
+                    onPress={stopStream}
+                    className="px-4 py-2 rounded-lg"
+                    style={{ backgroundColor: '#ef4444' }}
+                  >
+                    <Text className="text-white font-bold">END</Text>
+                  </Pressable>
                 </View>
-                <View className="flex-row justify-between">
-                  <Text style={{ color: Colors.mutedForeground }}>Stream ID</Text>
-                  <Text className="text-white font-mono text-xs">{stream?.streamId.slice(0, 16)}...</Text>
-                </View>
-                <View className="flex-row justify-between">
-                  <Text style={{ color: Colors.mutedForeground }}>Protocol</Text>
-                  <Text style={{ color: Colors.primary }}>P2P Mesh (Bitchat)</Text>
+                
+                <View className="flex-1" />
+                
+                <View 
+                  className="px-4 py-4"
+                  style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+                >
+                  <Text className="text-white font-bold text-lg mb-2">{stream?.title}</Text>
+                  
+                  <View className="flex-row items-center justify-between mb-4">
+                    <View className="flex-row items-center gap-4">
+                      <View className="flex-row items-center">
+                        <Ionicons name="eye" size={16} color={Colors.primary} />
+                        <Text className="text-white ml-1">{stream?.viewerCount || 0}</Text>
+                      </View>
+                      <View className="flex-row items-center">
+                        <Ionicons name="people" size={16} color={Colors.green} />
+                        <Text className="text-white ml-1">{peerCount}</Text>
+                      </View>
+                    </View>
+                    <View className="flex-row items-center px-2 py-1 rounded" style={{ backgroundColor: `${Colors.secondary}30` }}>
+                      <Text className="text-xs" style={{ color: Colors.secondary }}>{stream?.quality?.toUpperCase()} • {stream?.fps} FPS</Text>
+                    </View>
+                  </View>
+                  
+                  <View className="flex-row justify-center gap-6">
+                    <Pressable
+                      onPress={toggleCamera}
+                      className="w-14 h-14 rounded-full items-center justify-center"
+                      style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
+                    >
+                      <Ionicons name="camera-reverse" size={28} color="white" />
+                    </Pressable>
+                    <Pressable
+                      className="w-14 h-14 rounded-full items-center justify-center"
+                      style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
+                    >
+                      <Ionicons name="mic" size={28} color="white" />
+                    </Pressable>
+                    <Pressable
+                      className="w-14 h-14 rounded-full items-center justify-center"
+                      style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}
+                    >
+                      <Ionicons name="flash" size={28} color="white" />
+                    </Pressable>
+                  </View>
                 </View>
               </View>
+            </CameraView>
+          ) : (
+            <View className="flex-1 bg-background">
+              <View className="flex-row items-center justify-between px-4 h-14">
+                <View className="flex-row items-center gap-2">
+                  <Animated.View
+                    style={{
+                      transform: [{ scale: pulseAnim }],
+                    }}
+                  >
+                    <View className="w-3 h-3 rounded-full bg-red-500" />
+                  </Animated.View>
+                  <Text className="text-white font-bold">LIVE</Text>
+                </View>
+                <Text className="text-white font-mono">{formatDuration()}</Text>
+                <Pressable
+                  onPress={stopStream}
+                  className="px-4 py-2 rounded-lg"
+                  style={{ backgroundColor: '#ef4444' }}
+                >
+                  <Text className="text-white font-bold">END</Text>
+                </Pressable>
+              </View>
+
+              <View className="flex-1 items-center justify-center px-6">
+                <Animated.View
+                  style={{
+                    transform: [{ scale: pulseAnim }],
+                  }}
+                >
+                  <View 
+                    className="w-32 h-32 rounded-full items-center justify-center"
+                    style={{ 
+                      backgroundColor: `${Colors.secondary}20`,
+                      borderWidth: 3,
+                      borderColor: Colors.secondary,
+                    }}
+                  >
+                    <Ionicons name="radio" size={64} color={Colors.secondary} />
+                  </View>
+                </Animated.View>
+
+                <Text className="text-2xl font-bold text-white mt-6">
+                  Broadcasting
+                </Text>
+                <Text className="text-lg mt-2" style={{ color: Colors.mutedForeground }}>
+                  {stream?.title}
+                </Text>
+
+                <View className="mt-4 px-4 py-2 rounded-lg" style={{ backgroundColor: `${Colors.yellow}20` }}>
+                  <Text className="text-xs text-center" style={{ color: Colors.yellow }}>
+                    Web Preview - Camera requires native iOS/Android build
+                  </Text>
+                </View>
+
+                <View className="flex-row gap-6 mt-8">
+                  <View className="items-center">
+                    <Text className="text-3xl font-bold" style={{ color: Colors.primary }}>
+                      {stream?.viewerCount || 0}
+                    </Text>
+                    <Text className="text-xs mt-1" style={{ color: Colors.mutedForeground }}>Viewers</Text>
+                  </View>
+                  <View className="w-px" style={{ backgroundColor: Colors.mutedForeground }} />
+                  <View className="items-center">
+                    <Text className="text-3xl font-bold" style={{ color: Colors.green }}>
+                      {peerCount}
+                    </Text>
+                    <Text className="text-xs mt-1" style={{ color: Colors.mutedForeground }}>Peers</Text>
+                  </View>
+                  <View className="w-px" style={{ backgroundColor: Colors.mutedForeground }} />
+                  <View className="items-center">
+                    <Text className="text-3xl font-bold" style={{ color: Colors.secondary }}>
+                      {stream?.fps || 24}
+                    </Text>
+                    <Text className="text-xs mt-1" style={{ color: Colors.mutedForeground }}>FPS</Text>
+                  </View>
+                </View>
+
+                <View 
+                  className="w-full mt-10 p-4 rounded-xl"
+                  style={{ backgroundColor: Colors.card }}
+                >
+                  <Text className="font-bold text-white mb-3">Stream Info</Text>
+                  <View className="gap-2">
+                    <View className="flex-row justify-between">
+                      <Text style={{ color: Colors.mutedForeground }}>Quality</Text>
+                      <Text className="text-white">{stream?.quality?.toUpperCase()}</Text>
+                    </View>
+                    <View className="flex-row justify-between">
+                      <Text style={{ color: Colors.mutedForeground }}>Stream ID</Text>
+                      <Text className="text-white font-mono text-xs">{stream?.streamId.slice(0, 16)}...</Text>
+                    </View>
+                    <View className="flex-row justify-between">
+                      <Text style={{ color: Colors.mutedForeground }}>Protocol</Text>
+                      <Text style={{ color: Colors.primary }}>P2P Mesh (Bitchat)</Text>
+                    </View>
+                  </View>
+                </View>
+              </View>
             </View>
-          </View>
+          )}
         </View>
       </SafeAreaView>
     );
@@ -207,6 +324,23 @@ export default function HostStreamScreen() {
       <Header title="HOST STREAM" showBack />
 
       <ScrollView className="flex-1 px-6 py-4" showsVerticalScrollIndicator={false}>
+        {Platform.OS !== 'web' && !permission?.granted && (
+          <Pressable
+            onPress={requestPermission}
+            className="p-4 rounded-xl mb-6 flex-row items-center"
+            style={{ backgroundColor: `${Colors.yellow}20`, borderWidth: 1, borderColor: Colors.yellow }}
+          >
+            <Ionicons name="camera" size={24} color={Colors.yellow} />
+            <View className="ml-3 flex-1">
+              <Text className="font-bold" style={{ color: Colors.yellow }}>Camera Permission Required</Text>
+              <Text className="text-xs mt-1" style={{ color: Colors.mutedForeground }}>
+                Tap to enable camera access for live streaming
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.yellow} />
+          </Pressable>
+        )}
+        
         <Text className="text-white text-lg font-bold mb-2">Stream Title</Text>
         <TextInput
           value={title}

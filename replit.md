@@ -48,6 +48,20 @@ This is an Expo React Native application running in web mode on Replit. It featu
    - Quality settings (low/medium/high)
    - Host/viewer management
 
+6. **notifications.ts** - Push Notifications
+   - Expo Notifications integration
+   - Bet proposal/accept/settle alerts
+   - Peer connection notifications
+   - Stream start notifications
+   - Android notification channels
+
+7. **transactions.ts** - On-Chain Transactions
+   - Ethereum/Polygon network support
+   - Send/receive crypto transactions
+   - Gas estimation and tracking
+   - Transaction history
+   - Escrow support for bet stakes
+
 ## Screen Status (Mock Data Audit)
 
 All screens now use real service layers:
@@ -61,7 +75,14 @@ All screens now use real service layers:
 - **Scan Modal** - Real peer discovery via bitchat
 - **Settings** - Persistent settings with AsyncStorage, wallet export, emergency wipe
 - **Stream Player** - P2P video stream viewer with buffer visualization
-- **Host Stream** - Start broadcasting to mesh network
+- **Host Stream** - Start broadcasting to mesh network with camera integration
+
+## App Store Metadata
+
+The `metadata/` directory contains App Store submission materials:
+- `metadata/ios/` - iOS App Store description, keywords, release notes
+- `metadata/android/` - Google Play Store descriptions
+- `metadata/privacy_policy.md` - Privacy policy document
 
 ## Project Structure
 

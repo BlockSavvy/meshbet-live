@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { bitchatService } from './bitchat';
 import { walletService } from './wallet';
+import { notificationService } from './notifications';
 
 export type BetStatus = 'open' | 'pending' | 'accepted' | 'settled' | 'cancelled' | 'disputed';
 export type BetOutcome = 'pending' | 'win' | 'loss' | 'push' | 'cancelled';
@@ -325,6 +326,12 @@ class BettingService {
       this.bets.set(bet.id, bet);
       await this.saveBets();
       this.notifyBetUpdate(bet);
+      
+      await notificationService.notifyBetReceived(
+        bet.creator.nickname,
+        bet.amount,
+        bet.eventName
+      );
     }
   }
 
@@ -335,6 +342,15 @@ class BettingService {
       bet.status = 'accepted';
       await this.saveBets();
       this.notifyBetUpdate(bet);
+      
+      const myWallet = walletService.getAddress();
+      if (bet.creator.walletAddress === myWallet) {
+        await notificationService.notifyBetAccepted(
+          message.payload.opponent.nickname,
+          bet.amount,
+          bet.eventName
+        );
+      }
     }
   }
 
@@ -351,9 +367,19 @@ class BettingService {
     const bet = this.bets.get(message.betId);
     if (bet && bet.status === 'accepted') {
       bet.status = 'settled';
+      bet.outcome = message.payload.outcome;
       bet.settledAt = message.payload.settledAt;
       await this.saveBets();
       this.notifyBetUpdate(bet);
+      
+      const myWallet = walletService.getAddress();
+      const isCreator = bet.creator.walletAddress === myWallet;
+      const isOpponent = bet.opponent?.walletAddress === myWallet;
+      
+      if (isCreator || isOpponent) {
+        const won = (isCreator && bet.outcome === 'win') || (isOpponent && bet.outcome === 'loss');
+        await notificationService.notifyBetSettled(won, bet.amount, bet.eventName);
+      }
     }
   }
 
