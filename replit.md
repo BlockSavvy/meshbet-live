@@ -11,6 +11,28 @@ This is an Expo React Native application running in web mode on Replit. It featu
 - React Native Reanimated for animations
 - Cyberpunk/Neon design theme
 
+## Service Architecture
+
+### Real Service Layers (lib/services/)
+
+1. **bitchat.ts** - Mesh networking via expo-bitchat
+   - `initialize()`, `startServices()`, `startDiscovery()`
+   - Event listeners: `onPeerConnected`, `onPeerDisconnected`, `onStatusChange`
+   - Mock fallback for web preview (generates fake peers after 2s delay)
+   - Real Bluetooth mesh on native iOS/Android builds
+
+2. **wallet.ts** - HD Wallet with BIP39
+   - Uses ethers.js for wallet generation and signing
+   - 12-word seed phrase with secure storage (expo-secure-store)
+   - `createWallet()`, `restoreFromMnemonic()`, `signMessage()`
+   - Backup confirmation tracking
+
+3. **sportsData.ts** - Live Sports & Odds
+   - The Odds API integration for real-time events
+   - Sports: UFC/MMA, NFL, NBA, MLB, NHL, Soccer
+   - Odds formatting (American/Decimal)
+   - Offline caching with AsyncStorage (5-min TTL)
+
 ## Project Structure
 
 ```
