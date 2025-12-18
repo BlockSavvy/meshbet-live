@@ -60,6 +60,7 @@ class BitchatService {
     if (Platform.OS === 'web') {
       console.log('[Bitchat] Starting mock services for web');
       this.isRunning = true;
+      this.localPeerId = `web_${Math.random().toString(36).substr(2, 8)}`;
       this.notifyStatus('connected');
       return true;
     }
@@ -72,6 +73,15 @@ class BitchatService {
     try {
       await this.BitchatAPI.startServices(nickname);
       this.isRunning = true;
+      
+      try {
+        const peerInfo = await this.BitchatAPI.getLocalPeerInfo?.();
+        if (peerInfo?.peerID) {
+          this.localPeerId = peerInfo.peerID;
+        }
+      } catch (e) {
+        console.log('[Bitchat] Could not get local peer info, using fallback');
+      }
 
       this.BitchatAPI.addMessageListener((message: any) => {
         const msg: BitchatMessage = {

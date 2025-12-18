@@ -10,6 +10,8 @@ This is an Expo React Native application running in web mode on Replit. It featu
 - Expo Router (file-based routing)
 - React Native Reanimated for animations
 - Cyberpunk/Neon design theme
+- P2P betting system with cryptographic signatures
+- P2P video streaming with chunked transfer
 
 ## Service Architecture
 
@@ -32,6 +34,19 @@ This is an Expo React Native application running in web mode on Replit. It featu
    - Sports: UFC/MMA, NFL, NBA, MLB, NHL, Soccer
    - Odds formatting (American/Decimal)
    - Offline caching with AsyncStorage (5-min TTL)
+
+4. **betting.ts** - P2P Betting System
+   - Bet creation, acceptance, and settlement
+   - Message types: BET_PROPOSAL, BET_ACCEPT, BET_SETTLE, BET_CANCEL
+   - Cryptographic signatures via wallet service
+   - Bet status: open, pending, accepted, settled, cancelled
+   - Stats tracking: wins, losses, win rate
+
+5. **streaming.ts** - P2P Video Streaming
+   - Chunked transfer (16KB chunks, 30-chunk buffer)
+   - Stream metadata broadcasting
+   - Quality settings (low/medium/high)
+   - Host/viewer management
 
 ## Project Structure
 
