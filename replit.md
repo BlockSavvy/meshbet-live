@@ -48,6 +48,19 @@ This is an Expo React Native application running in web mode on Replit. It featu
    - Quality settings (low/medium/high)
    - Host/viewer management
 
+## Screen Status (Mock Data Audit)
+
+All screens now use real service layers:
+- **Lobby Tab** - Real betting service, mesh peers, sports data
+- **Events Tab** - Real sports data API with live odds
+- **Wallet Tab** - Real wallet service with transaction history
+- **Mesh Tab** - Real bitchat service for peer discovery
+- **Profile Tab** - Real stats from betting and wallet services
+- **Create Bet** - Real betting service with event selection
+- **Event Room** - Real chat messages and bets via mesh
+- **Scan Modal** - Real peer discovery via bitchat
+- **Settings** - Persistent settings with AsyncStorage, wallet export, emergency wipe
+
 ## Project Structure
 
 ```

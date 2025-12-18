@@ -75,6 +75,7 @@ export default function EventRoomScreen() {
         await bitchatService.startServices('MeshBet_User');
       }
       
+      await bitchatService.hydratePeers();
       setPeerCount(bitchatService.connectedPeers.length);
       setLoading(false);
     };
@@ -82,16 +83,14 @@ export default function EventRoomScreen() {
     initialize();
 
     const unsubMessage = bitchatService.onMessage((msg: BitchatMessage) => {
-      if (msg.channel === `#event_${id}` || msg.channel === '#general') {
-        const chatMsg: ChatMessage = {
-          id: msg.id,
-          user: msg.senderNickname || msg.sender.slice(0, 8),
-          text: msg.content,
-          time: formatTimeAgo(msg.timestamp),
-          isSelf: msg.sender === 'self',
-        };
-        setMessages((prev) => [...prev, chatMsg]);
-      }
+      const chatMsg: ChatMessage = {
+        id: msg.id,
+        user: msg.senderNickname || msg.sender.slice(0, 8),
+        text: msg.content,
+        time: formatTimeAgo(msg.timestamp),
+        isSelf: msg.sender === 'self',
+      };
+      setMessages((prev) => [...prev, chatMsg]);
     });
 
     const unsubBet = bettingService.onBetUpdate((bet) => {
@@ -127,8 +126,7 @@ export default function EventRoomScreen() {
   const sendMessage = async () => {
     if (!message.trim()) return;
     
-    const channel = id ? `#event_${id}` : '#general';
-    const success = await bitchatService.sendMessage(message.trim(), channel);
+    const success = await bitchatService.sendMessage(message.trim(), '#general');
     
     if (success) {
       setMessage("");

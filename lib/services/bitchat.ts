@@ -229,6 +229,41 @@ class BitchatService {
       }, 500);
       return;
     }
+
+    if (!this.BitchatAPI || !this.isRunning) {
+      console.log('[Bitchat] Cannot start discovery - service not running');
+      return;
+    }
+
+    try {
+      if (this.BitchatAPI.startDiscovery) {
+        await this.BitchatAPI.startDiscovery();
+      }
+      
+      const peers = await this.getConnectedPeers();
+      peers.forEach(peer => {
+        if (!this.peers.has(peer.peerID)) {
+          this.peers.set(peer.peerID, peer);
+          this.peerConnectedListeners.forEach(listener => listener(peer));
+        }
+      });
+      
+      setTimeout(() => {
+        this.notifyStatus('connected');
+      }, 3000);
+    } catch (error) {
+      console.error('[Bitchat] Discovery failed:', error);
+      this.notifyStatus('connected');
+    }
+  }
+
+  async hydratePeers(): Promise<void> {
+    const peers = await this.getConnectedPeers();
+    peers.forEach(peer => {
+      if (!this.peers.has(peer.peerID)) {
+        this.peers.set(peer.peerID, peer);
+      }
+    });
   }
 
   onMessage(listener: MessageListener): () => void {
