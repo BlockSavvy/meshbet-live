@@ -15,14 +15,16 @@ This is an Expo React Native application running in web mode on Replit. It featu
 
 ```
 ├── app/                    # Expo Router pages
-│   ├── (tabs)/            # Tab-based navigation
+│   ├── (tabs)/            # Tab-based navigation (5 tabs)
 │   │   ├── index.tsx      # Home/Lobby screen
 │   │   ├── events.tsx     # Live events
-│   │   ├── wallet.tsx     # Wallet screen
-│   │   └── profile.tsx    # User profile
-│   ├── index.tsx          # Splash screen
-│   ├── onboarding.tsx     # Onboarding flow
-│   ├── scan.tsx           # Mesh scanner
+│   │   ├── wallet.tsx     # Wallet screen (center tab)
+│   │   ├── mesh.tsx       # Mesh network scanner with radar animation
+│   │   └── profile.tsx    # User profile with stats
+│   ├── _layout.tsx        # Root layout
+│   ├── index.tsx          # Splash screen (checks onboarding status)
+│   ├── onboarding.tsx     # 3-step onboarding with persistence
+│   ├── scan.tsx           # Mesh scanner modal
 │   ├── event/[id].tsx     # Event room
 │   ├── create-bet.tsx     # Create bet wizard
 │   └── settings.tsx       # Settings
@@ -45,7 +47,21 @@ The app runs in web mode via:
 npm run dev
 ```
 
-This starts Expo on port 5000 in LAN mode for web development.
+This starts Expo on port 5000 with tunnel mode for mobile testing.
+
+### Mobile Testing with Expo Go
+
+Scan the QR code from the terminal or use the tunnel URL:
+`exp://tnrgqu8-anonymous-5000.exp.direct`
+
+## Tab Navigation
+
+The app has a 5-tab layout:
+1. **LOBBY** (home) - Main betting lobby
+2. **LIVE** (radio) - Live events
+3. **WALLET** (center, elevated) - Wallet with cyan glow
+4. **MESH** (radio) - Mesh network scanner
+5. **ME** (person) - User profile
 
 ## Design System
 
@@ -54,10 +70,33 @@ The app uses a Cyberpunk/Neon theme:
 - **Primary:** `#00ffff` (cyan/neon blue)
 - **Secondary:** `#ff00ff` (magenta/neon pink)
 - **Card:** `#171717` (dark gray)
+- **Border:** `rgba(255,255,255,0.1)`
+
+All buttons have subtle glow effects using shadow with primary color.
+
+## Key Features
+
+### Onboarding Flow
+- Step 1: Enable Mesh Mode (simulates Bluetooth permissions)
+- Step 2: Create Wallet (generates wallet address, persists to AsyncStorage)
+- Step 3: Set Identity (username validation, persists to AsyncStorage)
+- Persists `onboarding_complete` flag for skip on next launch
+
+### Mesh Scanner
+- Radar-style animation with concentric rings
+- Rotating sweep line
+- Peer nodes appear as magenta dots with fade-in animation
+- Pulsing center point representing the user
+
+### Profile Screen
+- Username and wallet from AsyncStorage
+- Mesh status indicator (connected/disconnected)
+- Stats: Total Bets, Win Rate, Total Won
+- Menu items: History, Settings, Security, Help
 
 ## Notes
 
 - The app is configured to run in web mode for Replit compatibility
 - Some native features (Bluetooth mesh, native modules) are not available in web mode
-- A symlink for `react-native-worklets` was created to resolve NativeWind compatibility
+- Expo Go SDK 54+ is required for mobile testing
 - Placeholder images are used for logo and background assets

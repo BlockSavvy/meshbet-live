@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { View, Text, Pressable, Animated, ScrollView, Dimensions } from "react-native";
+import { View, Text, Pressable, Animated, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "@/constants/Colors";
@@ -25,50 +25,74 @@ export default function MeshTab() {
   const ring2Anim = useRef(new Animated.Value(0)).current;
   const ring3Anim = useRef(new Animated.Value(0)).current;
   const centerPulse = useRef(new Animated.Value(1)).current;
-  const peerOpacity = useRef(new Animated.Value(0)).current;
+  const peerFadeAnims = useRef([
+    new Animated.Value(0),
+    new Animated.Value(0),
+    new Animated.Value(0),
+  ]).current;
+
+  const rotationRef = useRef<Animated.CompositeAnimation | null>(null);
+  const ring1Ref = useRef<Animated.CompositeAnimation | null>(null);
+  const ring2Ref = useRef<Animated.CompositeAnimation | null>(null);
+  const ring3Ref = useRef<Animated.CompositeAnimation | null>(null);
+  const pulseRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  const stopAnimations = () => {
+    rotationRef.current?.stop();
+    ring1Ref.current?.stop();
+    ring2Ref.current?.stop();
+    ring3Ref.current?.stop();
+    pulseRef.current?.stop();
+  };
 
   const startScan = () => {
     setScanning(true);
     setPeers([]);
-    peerOpacity.setValue(0);
+    peerFadeAnims.forEach(anim => anim.setValue(0));
+    rotateAnim.setValue(0);
 
-    Animated.loop(
+    rotationRef.current = Animated.loop(
       Animated.timing(rotateAnim, {
         toValue: 1,
         duration: 2000,
         useNativeDriver: true,
       })
-    ).start();
+    );
+    rotationRef.current.start();
 
-    Animated.loop(
+    ring1Ref.current = Animated.loop(
       Animated.sequence([
         Animated.timing(ring1Anim, { toValue: 1, duration: 1500, useNativeDriver: true }),
         Animated.timing(ring1Anim, { toValue: 0, duration: 0, useNativeDriver: true }),
       ])
-    ).start();
+    );
+    ring1Ref.current.start();
 
-    Animated.loop(
+    ring2Ref.current = Animated.loop(
       Animated.sequence([
         Animated.delay(500),
         Animated.timing(ring2Anim, { toValue: 1, duration: 1500, useNativeDriver: true }),
         Animated.timing(ring2Anim, { toValue: 0, duration: 0, useNativeDriver: true }),
       ])
-    ).start();
+    );
+    ring2Ref.current.start();
 
-    Animated.loop(
+    ring3Ref.current = Animated.loop(
       Animated.sequence([
         Animated.delay(1000),
         Animated.timing(ring3Anim, { toValue: 1, duration: 1500, useNativeDriver: true }),
         Animated.timing(ring3Anim, { toValue: 0, duration: 0, useNativeDriver: true }),
       ])
-    ).start();
+    );
+    ring3Ref.current.start();
 
-    Animated.loop(
+    pulseRef.current = Animated.loop(
       Animated.sequence([
         Animated.timing(centerPulse, { toValue: 1.3, duration: 800, useNativeDriver: true }),
         Animated.timing(centerPulse, { toValue: 1, duration: 800, useNativeDriver: true }),
       ])
-    ).start();
+    );
+    pulseRef.current.start();
 
     const mockPeers: Peer[] = [
       { id: "Node_A7x", strength: 90, name: "Bar 2049 Main", users: 42, angle: 45, distance: 0.4 },
@@ -78,12 +102,23 @@ export default function MeshTab() {
 
     setTimeout(() => {
       setPeers([mockPeers[0]]);
-      Animated.timing(peerOpacity, { toValue: 1, duration: 500, useNativeDriver: true }).start();
+      Animated.timing(peerFadeAnims[0], { toValue: 1, duration: 500, useNativeDriver: true }).start();
     }, 1500);
 
-    setTimeout(() => setPeers((p) => [...p, mockPeers[1]]), 2500);
-    setTimeout(() => setPeers((p) => [...p, mockPeers[2]]), 4000);
-    setTimeout(() => setScanning(false), 6000);
+    setTimeout(() => {
+      setPeers((p) => [...p, mockPeers[1]]);
+      Animated.timing(peerFadeAnims[1], { toValue: 1, duration: 500, useNativeDriver: true }).start();
+    }, 2500);
+
+    setTimeout(() => {
+      setPeers((p) => [...p, mockPeers[2]]);
+      Animated.timing(peerFadeAnims[2], { toValue: 1, duration: 500, useNativeDriver: true }).start();
+    }, 4000);
+
+    setTimeout(() => {
+      stopAnimations();
+      setScanning(false);
+    }, 6000);
   };
 
   const spin = rotateAnim.interpolate({
@@ -91,7 +126,7 @@ export default function MeshTab() {
     outputRange: ["0deg", "360deg"],
   });
 
-  const getRingStyle = (anim: Animated.Value, baseSize: number) => ({
+  const getRingStyle = (anim: Animated.Value) => ({
     opacity: anim.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.6, 0.3, 0] }),
     transform: [{ scale: anim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }) }],
   });
@@ -162,7 +197,7 @@ export default function MeshTab() {
                       borderWidth: 2,
                       borderColor: Colors.primary,
                     },
-                    getRingStyle(ring1Anim, RADAR_SIZE),
+                    getRingStyle(ring1Anim),
                   ]}
                 />
                 <Animated.View
@@ -175,7 +210,7 @@ export default function MeshTab() {
                       borderWidth: 2,
                       borderColor: Colors.primary,
                     },
-                    getRingStyle(ring2Anim, RADAR_SIZE),
+                    getRingStyle(ring2Anim),
                   ]}
                 />
                 <Animated.View
@@ -188,37 +223,52 @@ export default function MeshTab() {
                       borderWidth: 2,
                       borderColor: Colors.primary,
                     },
-                    getRingStyle(ring3Anim, RADAR_SIZE),
+                    getRingStyle(ring3Anim),
                   ]}
                 />
 
                 <Animated.View
                   style={{
                     position: "absolute",
-                    width: 2,
-                    height: CENTER,
-                    backgroundColor: Colors.primary,
-                    bottom: CENTER,
-                    left: CENTER - 1,
-                    transformOrigin: "bottom",
+                    width: RADAR_SIZE,
+                    height: RADAR_SIZE,
+                    alignItems: "center",
+                    justifyContent: "flex-start",
                     transform: [{ rotate: spin }],
-                    opacity: 0.8,
                   }}
-                />
+                >
+                  <View
+                    style={{
+                      width: 2,
+                      height: CENTER,
+                      backgroundColor: Colors.primary,
+                      opacity: 0.8,
+                    }}
+                  />
+                </Animated.View>
 
                 <Animated.View
                   style={{
                     position: "absolute",
-                    width: RADAR_SIZE / 2,
-                    height: RADAR_SIZE / 2,
-                    borderTopLeftRadius: RADAR_SIZE / 2,
-                    backgroundColor: `${Colors.primary}20`,
-                    top: 0,
-                    left: CENTER,
-                    transformOrigin: "bottom left",
+                    width: RADAR_SIZE,
+                    height: RADAR_SIZE,
                     transform: [{ rotate: spin }],
+                    overflow: "hidden",
+                    borderRadius: RADAR_SIZE / 2,
                   }}
-                />
+                >
+                  <View
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: CENTER,
+                      width: CENTER,
+                      height: CENTER,
+                      backgroundColor: `${Colors.primary}15`,
+                      borderTopRightRadius: CENTER,
+                    }}
+                  />
+                </Animated.View>
               </>
             )}
 
@@ -246,7 +296,7 @@ export default function MeshTab() {
                   height: 16,
                   borderRadius: 8,
                   backgroundColor: Colors.secondary,
-                  opacity: peerOpacity,
+                  opacity: peerFadeAnims[index],
                   shadowColor: Colors.secondary,
                   shadowOffset: { width: 0, height: 0 },
                   shadowOpacity: 0.8,

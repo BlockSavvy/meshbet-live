@@ -1,12 +1,14 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { View, Text, Image, Animated } from "react-native";
 import { router } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Colors } from "@/constants/Colors";
 
 export default function SplashScreen() {
   const scaleAnim = useRef(new Animated.Value(0.8)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     Animated.parallel([
@@ -23,11 +25,31 @@ export default function SplashScreen() {
       }),
     ]).start();
 
-    const timer = setTimeout(() => {
-      router.replace("/onboarding");
-    }, 3000);
+    const checkOnboarding = async () => {
+      try {
+        const onboardingComplete = await AsyncStorage.getItem("onboarding_complete");
+        
+        timerRef.current = setTimeout(() => {
+          if (onboardingComplete === "true") {
+            router.replace("/(tabs)");
+          } else {
+            router.replace("/onboarding");
+          }
+        }, 2500);
+      } catch (error) {
+        timerRef.current = setTimeout(() => {
+          router.replace("/onboarding");
+        }, 2500);
+      }
+    };
 
-    return () => clearTimeout(timer);
+    checkOnboarding();
+
+    return () => {
+      if (timerRef.current) {
+        clearTimeout(timerRef.current);
+      }
+    };
   }, []);
 
   return (
