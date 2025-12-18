@@ -79,7 +79,7 @@ export default function TabLayout() {
           title: "MESH",
           tabBarIcon: ({ color, focused }) => (
             <Ionicons
-              name={focused ? "scan-circle" : "scan-circle-outline"}
+              name={focused ? "radio" : "radio-outline"}
               size={24}
               color={color}
             />
