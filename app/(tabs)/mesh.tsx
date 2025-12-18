@@ -1,15 +1,13 @@
-import { useEffect, useRef, useState } from "react";
-import { View, Text, Pressable, Animated, ScrollView } from "react-native";
+import { useEffect, useRef, useState, useCallback } from "react";
+import { View, Text, Pressable, Animated, ScrollView, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "@/constants/Colors";
 import { Header } from "@/components/layout/Header";
+import { bitchatService, BitchatPeer } from "@/lib/services/bitchat";
 
-interface Peer {
-  id: string;
+interface DisplayPeer extends BitchatPeer {
   strength: number;
-  name: string;
-  users: number;
   angle: number;
   distance: number;
 }
@@ -19,23 +17,78 @@ const CENTER = RADAR_SIZE / 2;
 
 export default function MeshTab() {
   const [scanning, setScanning] = useState(false);
-  const [peers, setPeers] = useState<Peer[]>([]);
+  const [meshStatus, setMeshStatus] = useState<'disconnected' | 'connected' | 'scanning'>('disconnected');
+  const [peers, setPeers] = useState<DisplayPeer[]>([]);
   const rotateAnim = useRef(new Animated.Value(0)).current;
   const ring1Anim = useRef(new Animated.Value(0)).current;
   const ring2Anim = useRef(new Animated.Value(0)).current;
   const ring3Anim = useRef(new Animated.Value(0)).current;
   const centerPulse = useRef(new Animated.Value(1)).current;
-  const peerFadeAnims = useRef([
-    new Animated.Value(0),
-    new Animated.Value(0),
-    new Animated.Value(0),
-  ]).current;
+  const peerFadeAnims = useRef<Animated.Value[]>([]).current;
 
   const rotationRef = useRef<Animated.CompositeAnimation | null>(null);
   const ring1Ref = useRef<Animated.CompositeAnimation | null>(null);
   const ring2Ref = useRef<Animated.CompositeAnimation | null>(null);
   const ring3Ref = useRef<Animated.CompositeAnimation | null>(null);
   const pulseRef = useRef<Animated.CompositeAnimation | null>(null);
+
+  const convertRssiToStrength = (rssi?: number): number => {
+    if (!rssi) return 70;
+    const minRssi = -100;
+    const maxRssi = -30;
+    const strength = ((rssi - minRssi) / (maxRssi - minRssi)) * 100;
+    return Math.min(100, Math.max(0, Math.round(strength)));
+  };
+
+  const getRandomAngle = () => Math.random() * 360;
+  const getDistanceFromStrength = (strength: number) => 0.3 + (1 - strength / 100) * 0.5;
+
+  useEffect(() => {
+    const unsubPeerConnected = bitchatService.onPeerConnected((peer) => {
+      const strength = convertRssiToStrength(peer.rssi);
+      const displayPeer: DisplayPeer = {
+        ...peer,
+        strength,
+        angle: getRandomAngle(),
+        distance: getDistanceFromStrength(strength),
+      };
+
+      setPeers((prev) => {
+        if (prev.find(p => p.peerID === peer.peerID)) return prev;
+        const newPeers = [...prev, displayPeer];
+        
+        while (peerFadeAnims.length < newPeers.length) {
+          peerFadeAnims.push(new Animated.Value(0));
+        }
+        
+        Animated.timing(peerFadeAnims[newPeers.length - 1], {
+          toValue: 1,
+          duration: 500,
+          useNativeDriver: true,
+        }).start();
+        
+        return newPeers;
+      });
+    });
+
+    const unsubPeerDisconnected = bitchatService.onPeerDisconnected((peer) => {
+      setPeers((prev) => prev.filter(p => p.peerID !== peer.peerID));
+    });
+
+    const unsubStatus = bitchatService.onStatusChange((status) => {
+      setMeshStatus(status);
+      if (status === 'connected') {
+        setScanning(false);
+        stopAnimations();
+      }
+    });
+
+    return () => {
+      unsubPeerConnected();
+      unsubPeerDisconnected();
+      unsubStatus();
+    };
+  }, []);
 
   const stopAnimations = () => {
     rotationRef.current?.stop();
@@ -45,7 +98,7 @@ export default function MeshTab() {
     pulseRef.current?.stop();
   };
 
-  const startScan = () => {
+  const startScan = async () => {
     setScanning(true);
     setPeers([]);
     peerFadeAnims.forEach(anim => anim.setValue(0));
@@ -94,31 +147,10 @@ export default function MeshTab() {
     );
     pulseRef.current.start();
 
-    const mockPeers: Peer[] = [
-      { id: "Node_A7x", strength: 90, name: "Bar 2049 Main", users: 42, angle: 45, distance: 0.4 },
-      { id: "Node_B9y", strength: 65, name: "Mike's Tailgate", users: 12, angle: 160, distance: 0.6 },
-      { id: "Node_C2z", strength: 40, name: "Underground FC", users: 156, angle: 280, distance: 0.8 },
-    ];
-
-    setTimeout(() => {
-      setPeers([mockPeers[0]]);
-      Animated.timing(peerFadeAnims[0], { toValue: 1, duration: 500, useNativeDriver: true }).start();
-    }, 1500);
-
-    setTimeout(() => {
-      setPeers((p) => [...p, mockPeers[1]]);
-      Animated.timing(peerFadeAnims[1], { toValue: 1, duration: 500, useNativeDriver: true }).start();
-    }, 2500);
-
-    setTimeout(() => {
-      setPeers((p) => [...p, mockPeers[2]]);
-      Animated.timing(peerFadeAnims[2], { toValue: 1, duration: 500, useNativeDriver: true }).start();
-    }, 4000);
-
-    setTimeout(() => {
-      stopAnimations();
-      setScanning(false);
-    }, 6000);
+    if (!bitchatService.running) {
+      await bitchatService.startServices('MeshBet_User');
+    }
+    await bitchatService.startDiscovery();
   };
 
   const spin = rotateAnim.interpolate({
@@ -131,7 +163,7 @@ export default function MeshTab() {
     transform: [{ scale: anim.interpolate({ inputRange: [0, 1], outputRange: [0.3, 1] }) }],
   });
 
-  const getPeerPosition = (peer: Peer) => {
+  const getPeerPosition = (peer: DisplayPeer) => {
     const radians = (peer.angle * Math.PI) / 180;
     const maxRadius = CENTER - 30;
     const radius = peer.distance * maxRadius;
@@ -147,12 +179,33 @@ export default function MeshTab() {
     return "#ef4444";
   };
 
+  const getStatusText = () => {
+    if (scanning) return "Scanning for peers...";
+    if (meshStatus === 'connected' && peers.length > 0) return `Connected to ${peers.length} peer${peers.length > 1 ? 's' : ''}`;
+    if (meshStatus === 'connected') return "Mesh active - no peers nearby";
+    return "Mesh Scanner";
+  };
+
+  const getSubtitleText = () => {
+    if (scanning) return "Finding nearby Bitchat nodes";
+    if (meshStatus === 'connected') return "Real-time peer discovery active";
+    return "Discover nearby mesh networks";
+  };
+
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top"]}>
       <Header title="MESH NETWORK" />
 
       <ScrollView className="flex-1 px-6">
         <View className="items-center py-6">
+          {Platform.OS === 'web' && (
+            <View className="mb-4 px-4 py-2 rounded-lg" style={{ backgroundColor: `${Colors.yellow}20` }}>
+              <Text className="text-xs text-center" style={{ color: Colors.yellow }}>
+                Web Preview Mode - Real Bluetooth requires native build
+              </Text>
+            </View>
+          )}
+
           <View style={{ width: RADAR_SIZE, height: RADAR_SIZE, alignItems: "center", justifyContent: "center" }}>
             <View
               style={{
@@ -277,9 +330,9 @@ export default function MeshTab() {
                 width: 16,
                 height: 16,
                 borderRadius: 8,
-                backgroundColor: Colors.primary,
+                backgroundColor: meshStatus === 'connected' ? Colors.green : Colors.primary,
                 transform: [{ scale: scanning ? centerPulse : 1 }],
-                shadowColor: Colors.primary,
+                shadowColor: meshStatus === 'connected' ? Colors.green : Colors.primary,
                 shadowOffset: { width: 0, height: 0 },
                 shadowOpacity: 0.8,
                 shadowRadius: 10,
@@ -288,7 +341,7 @@ export default function MeshTab() {
 
             {peers.map((peer, index) => (
               <Animated.View
-                key={peer.id}
+                key={peer.peerID}
                 style={{
                   position: "absolute",
                   ...getPeerPosition(peer),
@@ -296,7 +349,7 @@ export default function MeshTab() {
                   height: 16,
                   borderRadius: 8,
                   backgroundColor: Colors.secondary,
-                  opacity: peerFadeAnims[index],
+                  opacity: peerFadeAnims[index] || new Animated.Value(1),
                   shadowColor: Colors.secondary,
                   shadowOffset: { width: 0, height: 0 },
                   shadowOpacity: 0.8,
@@ -307,10 +360,10 @@ export default function MeshTab() {
           </View>
 
           <Text className="text-lg font-bold mt-4" style={{ color: Colors.foreground }}>
-            {scanning ? "Scanning for peers..." : "Mesh Scanner"}
+            {getStatusText()}
           </Text>
           <Text className="text-sm mt-1" style={{ color: Colors.mutedForeground }}>
-            {scanning ? "Finding nearby Bitchat nodes" : "Discover nearby mesh networks"}
+            {getSubtitleText()}
           </Text>
 
           {!scanning && peers.length === 0 && (
@@ -339,7 +392,7 @@ export default function MeshTab() {
             </Text>
             {peers.map((peer) => (
               <Pressable
-                key={peer.id}
+                key={peer.peerID}
                 className="p-4 rounded-xl mb-3"
                 style={{
                   backgroundColor: Colors.card,
@@ -357,10 +410,10 @@ export default function MeshTab() {
                     </View>
                     <View>
                       <Text className="font-bold" style={{ color: Colors.foreground }}>
-                        {peer.name}
+                        {peer.nickname}
                       </Text>
                       <Text className="text-xs" style={{ color: Colors.mutedForeground }}>
-                        {peer.id} • {peer.users} users
+                        {peer.peerID.slice(0, 12)}...
                       </Text>
                     </View>
                   </View>

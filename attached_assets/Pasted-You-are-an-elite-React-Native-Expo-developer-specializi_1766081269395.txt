@@ -1,0 +1,58 @@
+You are an elite React Native/Expo developer specializing in decentralized offline-first apps. Continue building "MeshBet Live" from the current TestFlight-ready state (mocked UI, no real mesh/wallet/betting/streaming).
+
+Current Status Recap:
+- App is in TestFlight with full UI/UX from design phase.
+- Everything mocked: Mesh discovery/chat, Bluetooth, wallet, streaming, betting.
+- Goal: Replace ALL mocks with real, functional implementations.
+- Priorities: Bitchat protocol compliance first (for authentic offline mesh), then wallet, sports data, betting, streaming.
+
+Key Decisions (Locked In – Realistic & Feasible):
+- NO Bitkey: Closed ecosystem, no SDK/integration possible. Use software HD wallet (BIP39/BIP44) via ethers.js or expo-crypto for on-device key gen/signing. Add seed phrase backup (iCloud/Android Backup).
+- Bitchat Mesh: Use the official Expo module "expo-bitchat" (github.com/quiint/expo-bitchat) – this provides 100% protocol-compatible Bluetooth mesh (Noise E2E, binary packets, geohash channels, peer events, delivery status). Fully interoperable with real Bitchat apps.
+- Bluetooth: Handled automatically by expo-bitchat (requests permissions, manages BLE advertising/scanning).
+- Live Sports Feeds & Odds: Use free tier of The Odds API (the-odds-api.com) – sign up for free key, covers NFL/NBA/UFC/MLB/soccer with live/upcoming odds, scores, events. Fallback to API-Football (api-football.com free plan) for more events.
+- P2P Streaming: Chunk video/audio into Bitchat messages (fragment/reassemble per protocol). Use Expo AV for playback. Placeholder host source (camera or screen capture). Adaptive low-bitrate for BLE limits. Sync via timestamp messages.
+- Betting Logic: Pure P2P over mesh – custom message types for proposing odds/props, signed commitments (wallet signs), escrow via multi-sig style (broadcast signed intents, settle on consensus messages). Use Lightning testnet (breez-sdk-react-native or lnurl) for micro settlements when possible. Group vote for outcomes offline; oracle (Odds API) when internet.
+
+Phase-by-Phase Implementation Plan (Execute Incrementally, Checkpoint After Each):
+Phase 1: Bitchat Mesh & Chat (Core Offline Magic 🔥)
+- Install expo-bitchat.
+- Request Bluetooth/location permissions.
+- Start services with wallet-derived nickname/identity.
+- Implement real discovery: List nearby peers, auto-join geohash/local event channels.
+- Replace mock chat with real Bitchat messages: Send/receive text, private DMs, channel polls.
+- Test: Multiple devices/emulators – confirm mesh forms, messages relay offline, interoperable with real Bitchat app if possible.
+
+Phase 2: Real Wallet
+- Integrate ethers.js or @react-native-async-storage + expo-crypto for BIP39 mnemonic generation.
+- Onboard: Generate/store seed securely, show backup phrase.
+- Derive addresses (BTC/Lightning compatible if possible).
+- Sign messages for betting commitments.
+
+Phase 3: Sports Data & Events
+- Add The Odds API (free key): Fetch upcoming/live events (focus UFC/NFL initially).
+- Populate discover/home with real events.
+- Hybrid: Cache for offline viewing.
+
+Phase 4: P2P Betting Over Mesh
+- Custom Bitchat message types: Propose bet (event ID, odds, props), accept, commit signed amount.
+- Real-time updates via mesh listeners.
+- Settlement: Group consensus messages or oracle pull.
+
+Phase 5: P2P Video Streaming
+- Host: Chunk stream into Bitchat packets.
+- Relay/reassemble on peers.
+- Synced playback with mesh timestamp sync.
+- Low-res priority for offline.
+
+Phase 6: Polish & Shipping 🔥
+- Battery optimization (expo-bitchat adaptive).
+- Error handling (density warnings, fallback to WiFi Direct if needed via separate lib).
+- Viral: Mesh invites, share event channels.
+- TestFlight updates: Real functionality demos.
+- README: Full instructions, Bitchat compliance proof, test at events.
+- X posts ideas: "MeshBet Live now Bitchat-native – real offline mesh betting parties! Drop at your next UFC watch 🔥 #Bitchat #CryptoBetting"
+
+Build autonomously: Fix any install issues (config plugins for expo-bitchat), use dev builds for testing Bluetooth on real devices. Checkpoint after each phase with "Phase X complete – demo flow: [describe]".
+
+This turns mocks into a real game-changer – offline-resilient, Bitchat-pure, ready for crowds. Ship hard.
