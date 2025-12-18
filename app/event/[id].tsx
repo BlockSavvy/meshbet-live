@@ -79,14 +79,17 @@ export default function EventRoomScreen() {
       
       await bitchatService.hydratePeers();
       setPeerCount(bitchatService.connectedPeers.length);
-      setActiveStreams(streamingService.getActiveStreams());
+      const allStreams = streamingService.getActiveStreams();
+      const eventStreams = allStreams.filter(s => s.eventId === id || s.eventId === 'general');
+      setActiveStreams(eventStreams);
       setLoading(false);
     };
 
     initialize();
 
     const unsubStreams = streamingService.onStreamUpdate((streams) => {
-      setActiveStreams(streams);
+      const eventStreams = streams.filter(s => s.eventId === id || s.eventId === 'general');
+      setActiveStreams(eventStreams);
     });
 
     const unsubMessage = bitchatService.onMessage((msg: BitchatMessage) => {

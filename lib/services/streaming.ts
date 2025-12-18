@@ -108,15 +108,12 @@ class StreamingService {
   }
 
   async joinStream(streamId: string): Promise<boolean> {
-    const stream = this.activeStreams.get(streamId);
-    if (!stream) {
-      await this.broadcastMessage({
-        type: 'STREAM_REQUEST',
-        payload: { streamId },
-        timestamp: Date.now(),
-        senderPeerId: bitchatService.localPeerId || 'local',
-      });
-    }
+    await this.broadcastMessage({
+      type: 'STREAM_REQUEST',
+      payload: { streamId },
+      timestamp: Date.now(),
+      senderPeerId: bitchatService.localPeerId || 'local',
+    });
 
     this.currentStreamId = streamId;
     this.isHost = false;
