@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { View, Text, ScrollView, Pressable, RefreshControl } from "react-native";
+import { View, Text, ScrollView, Pressable, RefreshControl, Platform, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
@@ -58,28 +58,49 @@ export default function EventsScreen() {
     return SPORT_ICONS[sport] || 'trophy';
   };
 
+  const { width } = useWindowDimensions();
+  const isWeb = Platform.OS === 'web';
+  const isDesktop = isWeb && width >= 1024;
+  const isWide = isWeb && width >= 1440;
+  const gridColumns = isWide ? 3 : isDesktop ? 2 : 1;
+
   const sports = ['all', ...new Set(events.map(e => e.sport))];
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={["top"]}>
-      <Header title="LIVE EVENTS" />
+    <SafeAreaView className="flex-1 bg-background" edges={isDesktop ? [] : ["top"]}>
+      {!isDesktop && <Header title="LIVE EVENTS" />}
+      
+      {isDesktop && (
+        <View style={{ paddingHorizontal: 48, paddingTop: 32, paddingBottom: 16 }}>
+          <Text style={{ fontSize: 32, fontWeight: 'bold', color: Colors.foreground, marginBottom: 8 }}>
+            Live Events
+          </Text>
+          <Text style={{ fontSize: 16, color: Colors.mutedForeground }}>
+            Real-time odds from major sportsbooks
+          </Text>
+        </View>
+      )}
       
       <ScrollView 
         horizontal 
         showsHorizontalScrollIndicator={false}
-        className="max-h-12 px-4 mb-2"
+        className="max-h-12 mb-2"
+        style={{ paddingHorizontal: isDesktop ? 48 : 16 }}
         contentContainerStyle={{ alignItems: 'center', gap: 8 }}
       >
         {sports.map((sport) => (
           <Pressable
             key={sport}
             onPress={() => setSelectedSport(sport)}
-            className="px-4 py-2 rounded-full"
-            style={{
-              backgroundColor: selectedSport === sport ? Colors.primary : Colors.card,
+            style={({ hovered }: any) => ({
+              paddingHorizontal: 16,
+              paddingVertical: 8,
+              borderRadius: 20,
+              backgroundColor: selectedSport === sport ? Colors.primary : hovered ? 'rgba(255,255,255,0.1)' : Colors.card,
               borderWidth: 1,
               borderColor: selectedSport === sport ? Colors.primary : 'transparent',
-            }}
+              transition: 'all 0.2s' as any,
+            })}
           >
             <Text 
               className="text-xs font-bold uppercase"
@@ -94,7 +115,8 @@ export default function EventsScreen() {
       </ScrollView>
 
       <ScrollView 
-        className="flex-1 px-4"
+        className="flex-1"
+        style={{ paddingHorizontal: isDesktop ? 48 : 16 }}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -118,7 +140,15 @@ export default function EventsScreen() {
             </Text>
           </View>
         ) : (
-          <View className="gap-3 pb-20">
+          <View 
+            style={{ 
+              flexDirection: isDesktop ? 'row' : 'column',
+              flexWrap: isDesktop ? 'wrap' : 'nowrap',
+              gap: 16,
+              paddingBottom: 80,
+              maxWidth: isDesktop ? 1400 : undefined,
+            }}
+          >
             {filteredEvents.map((event) => {
               const odds = getOdds(event);
               const timeLabel = sportsDataService.formatTime(event.commenceTime);
@@ -127,12 +157,16 @@ export default function EventsScreen() {
               return (
                 <Pressable
                   key={event.id}
-                  className="p-4 rounded-xl"
-                  style={{
+                  style={({ hovered }: any) => ({
+                    padding: 16,
+                    borderRadius: 16,
                     backgroundColor: Colors.card,
                     borderWidth: 1,
-                    borderColor: isLive ? `${Colors.secondary}50` : 'transparent',
-                  }}
+                    borderColor: isLive ? `${Colors.secondary}50` : hovered ? `${Colors.primary}30` : 'transparent',
+                    width: isDesktop ? `calc(${100 / gridColumns}% - ${(16 * (gridColumns - 1)) / gridColumns}px)` as any : '100%',
+                    transform: hovered ? [{ scale: 1.01 }] : [],
+                    transition: 'all 0.2s' as any,
+                  })}
                 >
                   <View className="flex-row items-center justify-between mb-3">
                     <View className="flex-row items-center gap-2">

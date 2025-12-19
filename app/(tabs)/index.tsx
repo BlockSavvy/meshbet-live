@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import { View, Text, TextInput, ScrollView, Pressable, RefreshControl } from "react-native";
+import { View, Text, TextInput, ScrollView, Pressable, RefreshControl, Platform, useWindowDimensions } from "react-native";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "@/constants/Colors";
 import { Header } from "@/components/layout/Header";
+import { WebHero, WebFeatures } from "@/components/web";
 import { bettingService, Bet } from "@/lib/services/betting";
 import { bitchatService, BitchatPeer } from "@/lib/services/bitchat";
 import { sportsDataService, SportEvent } from "@/lib/services/sportsData";
@@ -55,6 +56,10 @@ export default function HomeScreen() {
     setRefreshing(false);
   }, [loadData]);
 
+  const { width } = useWindowDimensions();
+  const isWeb = Platform.OS === 'web';
+  const isDesktop = isWeb && width >= 1024;
+
   const formatAmount = (amount: number, currency: string) => {
     if (currency === 'SAT') return `${amount} sats`;
     if (currency === 'ETH') return `${amount} ETH`;
@@ -62,11 +67,12 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView className="flex-1 bg-background" edges={["top"]}>
-      <Header title="LOBBY" />
+    <SafeAreaView className="flex-1 bg-background" edges={isDesktop ? [] : ["top"]}>
+      {!isDesktop && <Header title="LOBBY" />}
 
       <ScrollView 
-        className="flex-1 px-4" 
+        className="flex-1" 
+        style={{ paddingHorizontal: isDesktop ? 0 : 16 }}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
@@ -76,24 +82,29 @@ export default function HomeScreen() {
           />
         }
       >
-        <View
-          className="flex-row items-center h-12 rounded-xl px-3 mt-4 mb-6"
-          style={{
-            backgroundColor: "rgba(255,255,255,0.05)",
-            borderWidth: 1,
-            borderColor: "rgba(255,255,255,0.1)",
-          }}
-        >
-          <Ionicons name="search" size={18} color={Colors.mutedForeground} />
-          <TextInput
-            placeholder="Find events, fighters, bets..."
-            placeholderTextColor={Colors.mutedForeground}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            className="flex-1 ml-3 text-sm"
-            style={{ color: Colors.foreground }}
-          />
-        </View>
+        {isDesktop && <WebHero />}
+        {isDesktop && <WebFeatures />}
+        
+        <View style={{ paddingHorizontal: isDesktop ? 48 : 0, maxWidth: isDesktop ? 1400 : undefined, marginHorizontal: isDesktop ? 'auto' : 0 }}>
+          <View
+            className="flex-row items-center h-12 rounded-xl px-3 mb-6"
+            style={{
+              backgroundColor: "rgba(255,255,255,0.05)",
+              borderWidth: 1,
+              borderColor: "rgba(255,255,255,0.1)",
+              marginTop: isDesktop ? 48 : 16,
+            }}
+          >
+            <Ionicons name="search" size={18} color={Colors.mutedForeground} />
+            <TextInput
+              placeholder="Find events, fighters, bets..."
+              placeholderTextColor={Colors.mutedForeground}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              className="flex-1 ml-3 text-sm"
+              style={{ color: Colors.foreground }}
+            />
+          </View>
 
         <View className="mb-6">
           <View className="flex-row justify-between items-center mb-3">
@@ -296,6 +307,7 @@ export default function HomeScreen() {
         </View>
 
         <View className="h-24" />
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

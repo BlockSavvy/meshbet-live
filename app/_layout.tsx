@@ -1,9 +1,11 @@
 import { useEffect, useRef } from "react";
+import { Platform } from "react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
 import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { WebLayout } from "@/components/web";
 import { notificationService } from "@/lib/services/notifications";
 import { streamingService } from "@/lib/services/streaming";
 import { sportsDataService } from "@/lib/services/sportsData";
@@ -61,22 +63,53 @@ export default function RootLayout() {
     return null;
   }
 
+  const isWeb = Platform.OS === 'web';
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <StatusBar style="light" />
+      {isWeb && (
+        <style dangerouslySetInnerHTML={{ __html: `
+          html, body, #root {
+            height: 100%;
+            overflow-x: hidden;
+          }
+          * {
+            box-sizing: border-box;
+          }
+          ::-webkit-scrollbar {
+            width: 8px;
+          }
+          ::-webkit-scrollbar-track {
+            background: #171717;
+          }
+          ::-webkit-scrollbar-thumb {
+            background: #333;
+            border-radius: 4px;
+          }
+          ::-webkit-scrollbar-thumb:hover {
+            background: #444;
+          }
+          @media (min-width: 1024px) {
+            .hide-on-desktop {
+              display: none !important;
+            }
+          }
+        `}} />
+      )}
       <Stack
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: "#0a0a0a" },
-          animation: "slide_from_right",
+          animation: isWeb ? "none" : "slide_from_right",
         }}
       >
         <Stack.Screen name="index" />
         <Stack.Screen name="onboarding" />
-        <Stack.Screen name="(tabs)" options={{ animation: "fade" }} />
-        <Stack.Screen name="scan" options={{ presentation: "modal" }} />
+        <Stack.Screen name="(tabs)" options={{ animation: isWeb ? "none" : "fade" }} />
+        <Stack.Screen name="scan" options={{ presentation: isWeb ? "card" : "modal" }} />
         <Stack.Screen name="event/[id]" />
-        <Stack.Screen name="create-bet" options={{ presentation: "modal" }} />
+        <Stack.Screen name="create-bet" options={{ presentation: isWeb ? "card" : "modal" }} />
         <Stack.Screen name="settings" />
         <Stack.Screen name="host-stream" />
         <Stack.Screen name="stream/[id]" />

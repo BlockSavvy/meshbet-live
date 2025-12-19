@@ -1,5 +1,32 @@
 import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Platform } from 'react-native';
 import 'react-native-get-random-values';
+
+const isWeb = Platform.OS === 'web';
+
+const storage = {
+  async getItem(key: string): Promise<string | null> {
+    if (isWeb) {
+      return AsyncStorage.getItem(key);
+    }
+    return SecureStore.getItemAsync(key);
+  },
+  async setItem(key: string, value: string): Promise<void> {
+    if (isWeb) {
+      await AsyncStorage.setItem(key, value);
+    } else {
+      await SecureStore.setItemAsync(key, value);
+    }
+  },
+  async deleteItem(key: string): Promise<void> {
+    if (isWeb) {
+      await AsyncStorage.removeItem(key);
+    } else {
+      await SecureStore.deleteItemAsync(key);
+    }
+  },
+};
 
 const WALLET_STORAGE_KEYS = {
   MNEMONIC: 'meshbet_wallet_mnemonic',
@@ -47,10 +74,10 @@ class WalletService {
       this.address = address;
       this.publicKey = publicKey;
 
-      await SecureStore.setItemAsync(WALLET_STORAGE_KEYS.MNEMONIC, mnemonic);
-      await SecureStore.setItemAsync(WALLET_STORAGE_KEYS.ADDRESS, address);
-      await SecureStore.setItemAsync(WALLET_STORAGE_KEYS.PUBLIC_KEY, publicKey);
-      await SecureStore.setItemAsync(WALLET_STORAGE_KEYS.HAS_BACKUP, 'false');
+      await storage.setItem(WALLET_STORAGE_KEYS.MNEMONIC, mnemonic);
+      await storage.setItem(WALLET_STORAGE_KEYS.ADDRESS, address);
+      await storage.setItem(WALLET_STORAGE_KEYS.PUBLIC_KEY, publicKey);
+      await storage.setItem(WALLET_STORAGE_KEYS.HAS_BACKUP, 'false');
 
       return {
         mnemonic,
@@ -79,10 +106,10 @@ class WalletService {
       this.address = address;
       this.publicKey = publicKey;
 
-      await SecureStore.setItemAsync(WALLET_STORAGE_KEYS.MNEMONIC, trimmedMnemonic);
-      await SecureStore.setItemAsync(WALLET_STORAGE_KEYS.ADDRESS, address);
-      await SecureStore.setItemAsync(WALLET_STORAGE_KEYS.PUBLIC_KEY, publicKey);
-      await SecureStore.setItemAsync(WALLET_STORAGE_KEYS.HAS_BACKUP, 'true');
+      await storage.setItem(WALLET_STORAGE_KEYS.MNEMONIC, trimmedMnemonic);
+      await storage.setItem(WALLET_STORAGE_KEYS.ADDRESS, address);
+      await storage.setItem(WALLET_STORAGE_KEYS.PUBLIC_KEY, publicKey);
+      await storage.setItem(WALLET_STORAGE_KEYS.HAS_BACKUP, 'true');
 
       return {
         address,
@@ -96,14 +123,14 @@ class WalletService {
 
   async loadExistingWallet(): Promise<WalletInfo | null> {
     try {
-      const address = await SecureStore.getItemAsync(WALLET_STORAGE_KEYS.ADDRESS);
-      const publicKey = await SecureStore.getItemAsync(WALLET_STORAGE_KEYS.PUBLIC_KEY);
-      const hasBackup = await SecureStore.getItemAsync(WALLET_STORAGE_KEYS.HAS_BACKUP);
+      const address = await storage.getItem(WALLET_STORAGE_KEYS.ADDRESS);
+      const publicKey = await storage.getItem(WALLET_STORAGE_KEYS.PUBLIC_KEY);
+      const hasBackup = await storage.getItem(WALLET_STORAGE_KEYS.HAS_BACKUP);
 
       if (address && publicKey) {
         this.address = address;
         this.publicKey = publicKey;
-        this.mnemonic = await SecureStore.getItemAsync(WALLET_STORAGE_KEYS.MNEMONIC);
+        this.mnemonic = await storage.getItem(WALLET_STORAGE_KEYS.MNEMONIC);
 
         return {
           address,
@@ -122,7 +149,7 @@ class WalletService {
     if (this.mnemonic) return this.mnemonic;
     
     try {
-      return await SecureStore.getItemAsync(WALLET_STORAGE_KEYS.MNEMONIC);
+      return await storage.getItem(WALLET_STORAGE_KEYS.MNEMONIC);
     } catch (error) {
       console.error('[Wallet] Failed to get mnemonic:', error);
       return null;
@@ -131,7 +158,7 @@ class WalletService {
 
   async markAsBackedUp(): Promise<void> {
     try {
-      await SecureStore.setItemAsync(WALLET_STORAGE_KEYS.HAS_BACKUP, 'true');
+      await storage.setItem(WALLET_STORAGE_KEYS.HAS_BACKUP, 'true');
     } catch (error) {
       console.error('[Wallet] Failed to mark as backed up:', error);
     }
@@ -175,10 +202,10 @@ class WalletService {
 
   async deleteWallet(): Promise<void> {
     try {
-      await SecureStore.deleteItemAsync(WALLET_STORAGE_KEYS.MNEMONIC);
-      await SecureStore.deleteItemAsync(WALLET_STORAGE_KEYS.ADDRESS);
-      await SecureStore.deleteItemAsync(WALLET_STORAGE_KEYS.PUBLIC_KEY);
-      await SecureStore.deleteItemAsync(WALLET_STORAGE_KEYS.HAS_BACKUP);
+      await storage.deleteItem(WALLET_STORAGE_KEYS.MNEMONIC);
+      await storage.deleteItem(WALLET_STORAGE_KEYS.ADDRESS);
+      await storage.deleteItem(WALLET_STORAGE_KEYS.PUBLIC_KEY);
+      await storage.deleteItem(WALLET_STORAGE_KEYS.HAS_BACKUP);
       this.mnemonic = null;
       this.address = null;
       this.publicKey = null;

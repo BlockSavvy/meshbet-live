@@ -12,6 +12,35 @@ This is an Expo React Native application running in web mode on Replit. It featu
 - Cyberpunk/Neon design theme
 - P2P betting system with cryptographic signatures
 - P2P video streaming with chunked transfer
+- Responsive Web Design with PWA support
+
+## Responsive Web Design (December 2024)
+
+The app now has a stunning responsive web version that works alongside the mobile app:
+
+### Breakpoints
+- Mobile: < 1024px (uses bottom tab bar navigation)
+- Desktop: >= 1024px (uses sidebar navigation, 280px width)
+- Wide: >= 1440px (3-column event grid, wider content area)
+
+### Web Components (components/web/)
+- **WebSidebar.tsx** - Desktop navigation sidebar with logo, nav items, quick actions
+- **WebHero.tsx** - Landing page hero with headline, CTAs, and app download promo
+- **WebFeatures.tsx** - Feature grid showcasing offline/P2P/crypto/mesh capabilities
+- **WebLayout.tsx** - Layout wrapper for responsive rendering
+
+### PWA Support
+- Manifest: public/manifest.json
+- Favicon: public/favicon.svg (mesh network icon)
+- Theme color: #00ffff (cyan)
+
+### Platform-Specific Storage
+The wallet service (lib/services/wallet.ts) uses:
+- **Native (iOS/Android):** expo-secure-store for encrypted storage
+- **Web:** AsyncStorage fallback for browser compatibility
+
+### "Best on Mobile" Banner
+The sidebar includes a notice that mesh/Bluetooth features work best in the native app, with links to iOS/Android stores.
 
 ## Service Architecture
 
