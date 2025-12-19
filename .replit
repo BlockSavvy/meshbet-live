@@ -43,3 +43,8 @@ externalPort = 3000
 deploymentTarget = "static"
 build = ["npx", "expo", "export", "--platform", "web"]
 publicDir = "dist"
+
+[userenv]
+
+[userenv.shared]
+EXPO_PUBLIC_ODDS_API_KEY = "f379e46c6724101a84cae0c0a1ff6c81"

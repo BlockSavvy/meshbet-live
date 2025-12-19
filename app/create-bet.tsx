@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { View, Text, TextInput, Pressable, ActivityIndicator, ScrollView, Platform } from "react-native";
 import { router, useLocalSearchParams } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -8,9 +8,11 @@ import { Header } from "@/components/layout/Header";
 import { Colors } from "@/constants/Colors";
 import { bettingService } from "@/lib/services/betting";
 import { sportsDataService, SportEvent } from "@/lib/services/sportsData";
+import ConfettiCannon from 'react-native-confetti-cannon';
 
 export default function CreateBetScreen() {
   const params = useLocalSearchParams<{ eventId?: string }>();
+  const confettiRef = useRef<any>(null);
   const [step, setStep] = useState(1);
   const [events, setEvents] = useState<SportEvent[]>([]);
   const [selectedEvent, setSelectedEvent] = useState<SportEvent | null>(null);
@@ -20,6 +22,7 @@ export default function CreateBetScreen() {
   const [currency, setCurrency] = useState<'SAT' | 'ETH' | 'USDC'>('SAT');
   const [odds, setOdds] = useState(2.0);
   const [broadcasting, setBroadcasting] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
 
   useEffect(() => {
     const loadEvents = async () => {
@@ -57,6 +60,7 @@ export default function CreateBetScreen() {
     setBroadcasting(false);
     
     if (bet) {
+      setShowConfetti(true);
       setStep(3);
     }
   };
@@ -409,6 +413,16 @@ export default function CreateBetScreen() {
 
         {step === 3 && (
           <View className="flex-1 items-center justify-center py-20">
+            {showConfetti && (
+              <ConfettiCannon
+                ref={confettiRef}
+                count={150}
+                origin={{ x: 200, y: -20 }}
+                autoStart={true}
+                fadeOut={true}
+                colors={[Colors.primary, Colors.secondary, Colors.green, '#FFD700', '#FF6B6B']}
+              />
+            )}
             <View
               className="w-24 h-24 rounded-full items-center justify-center mb-6"
               style={{

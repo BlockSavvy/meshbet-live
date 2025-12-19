@@ -1,0 +1,56 @@
+You are an elite React Native/Expo developer finishing "MeshBet Live" to production-ready 🔥. Current state: TestFlight build with full UI/screens, expo-bitchat integrated for mesh/chat (peers connect, messages work offline), but many features still mocked – events are fake, wallet buttons (deposit/withdraw) do nothing, place bet buttons inactive, betting logic mock, no real sports data.
+
+Goal: Replace ALL mocks with real, working functionality. Make buttons fully operational, populate with real live/upcoming events, enrich wallet, enable real P2P betting over mesh.
+
+Locked Decisions (Best & Feasible 2025):
+- Mesh: expo-bitchat (github.com/quiint/expo-bitchat) – already installed, ensure full use for all P2P (chat, betting messages, sync).
+- Sports Events & Odds: The Odds API (the-odds-api.com) – free tier available (500 requests/month). Sign up for free key at their site, add to env vars. Covers UFC, NFL, NBA perfectly with live/upcoming events, scores, odds (moneyline, spreads, totals).
+- Wallet: Software BIP39 HD wallet (ethers.js for BTC-compatible if possible, or bitcoinjs-lib). Feature-rich: Generate mnemonic on onboard (show backup phrase), balance display, transaction history, QR scan for deposit address.
+  - Deposit: Generate/receive address, show QR, mock incoming (or testnet faucet).
+  - Withdraw/Send: Real signed tx send (testnet Lightning for micro).
+- Lightning for Bets: Use breez-sdk-react-native (or @breeztech/react-native-breez-sdk) for easy Lightning payments/invoices. Testnet mode only for safety.
+- Betting: Pure P2P over Bitchat mesh – custom message types for propose/accept bet, signed commitments, escrow via multi-sig intents broadcast on mesh, settle on consensus or oracle result.
+
+Phase-by-Phase Polish Plan (Execute Incrementally, Checkpoint Each):
+Phase 1: Real Sports Events Population
+- Add The Odds API key to .env.
+- Fetch upcoming/live events (focus: fighting_ufc, americanfootball_nfl first).
+- Replace mock event lists in Home/Discover/Event Rooms with real data: Event name, teams/fighters, commence time, thumbnails if available.
+- Auto-create mesh channels for popular events (#UFC306 etc.).
+- Hybrid cache for offline viewing.
+
+Phase 2: Enrich & Fix Wallet (Make Buttons Work)
+- Full BIP39 wallet: Generate seed, secure store (expo-secure-store), derive addresses.
+- Wallet Screen: Show balance (mock sats initially, then Lightning), transaction history list, seed backup modal.
+- Deposit Button: Generate new receive address/invoice (Lightning bolt11), show QR code, copy to clipboard.
+- Withdraw/Send Button: Input address/amount/invoice, sign & broadcast (testnet), show confirmation.
+- Add breez-sdk for real Lightning invoices/payments (testnet).
+
+Phase 3: Make Betting Buttons & Logic Real
+- In Event Room: Replace mock betting sidebar with real props from Odds API (moneyline, over/under, props).
+- Place Bet Button: Propose via custom Bitchat message (event ID, selection, amount in sats).
+- Accept/Join Pool: Listen for proposals on mesh channel, sign commitment, broadcast acceptance.
+- Real-time updates: Mesh listeners show pool status, odds shifts.
+- Settlement: Auto via group consensus messages or pull final score from API.
+
+Phase 4: Tie Video Streaming & Sync to Real
+- Host stream chunks over Bitchat (fragment large packets).
+- Sync playback timestamps via mesh messages.
+- Placeholder real input (e.g., screen capture for testing).
+
+Phase 5: Final Polish & Bug Fixes
+- Fix all non-working buttons/navigation.
+- Animations/confetti on bet placement/settle.
+- Error handling: No mesh → warnings, low battery mode.
+- Battery optimization via expo-bitchat settings.
+- Viral: Share event mesh links.
+
+Phase 6: TestFlight Ready & Shipping 🔥
+- Full end-to-end tests: Onboard → join real event → deposit (testnet) → place/settle bet over mesh.
+- Update TestFlight build.
+- README: Add API key instructions, testnet notes, how to test at events.
+- X hype posts: "MeshBet Live polished – real UFC/NFL events, working Lightning bets over Bitchat mesh! TestFlight live 🔥 #Bitchat #CryptoSports"
+
+Build autonomously, fix any deps/config issues. Checkpoint after each phase: "Phase X complete – buttons working, real events showing, demo flow: [describe]".
+
+This finishes the game-changer – real, resilient, fun. Ship it to crowds!

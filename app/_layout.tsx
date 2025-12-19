@@ -6,9 +6,14 @@ import * as SplashScreen from "expo-splash-screen";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { notificationService } from "@/lib/services/notifications";
 import { streamingService } from "@/lib/services/streaming";
+import { sportsDataService } from "@/lib/services/sportsData";
+import { walletService } from "@/lib/services/wallet";
+import { bettingService } from "@/lib/services/betting";
 import "../global.css";
 
 SplashScreen.preventAutoHideAsync();
+
+const ODDS_API_KEY = process.env.EXPO_PUBLIC_ODDS_API_KEY || process.env.ODDS_API_KEY || '';
 
 export default function RootLayout() {
   const servicesInitialized = useRef(false);
@@ -23,9 +28,17 @@ export default function RootLayout() {
       servicesInitialized.current = true;
       
       try {
+        if (ODDS_API_KEY) {
+          sportsDataService.setApiKey(ODDS_API_KEY);
+          console.log('[App] Sports API key configured');
+        }
+        
+        await walletService.initialize();
+        await walletService.loadExistingWallet();
+        await bettingService.initialize();
         await notificationService.initialize();
         await streamingService.initialize();
-        console.log('[App] Services initialized');
+        console.log('[App] All services initialized');
       } catch (error) {
         console.error('[App] Failed to initialize services:', error);
       }

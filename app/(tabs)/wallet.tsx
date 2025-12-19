@@ -1,11 +1,15 @@
-import { useState, useEffect, useCallback } from "react";
-import { View, Text, Pressable, ScrollView, RefreshControl, Alert } from "react-native";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { View, Text, Pressable, ScrollView, RefreshControl, Alert, Modal, TextInput, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import * as Clipboard from 'expo-clipboard';
 import { Header } from "@/components/layout/Header";
 import { Colors } from "@/constants/Colors";
 import { walletService, WalletInfo } from "@/lib/services/wallet";
 import { bettingService } from "@/lib/services/betting";
+import { transactionService, Transaction as TxRecord } from "@/lib/services/transactions";
+import QRCode from 'react-native-qrcode-svg';
+import ConfettiCannon from 'react-native-confetti-cannon';
 
 interface Transaction {
   id: string;
@@ -22,6 +26,13 @@ export default function WalletScreen() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [showAddress, setShowAddress] = useState(false);
+  const [depositModalVisible, setDepositModalVisible] = useState(false);
+  const [withdrawModalVisible, setWithdrawModalVisible] = useState(false);
+  const [withdrawAddress, setWithdrawAddress] = useState("");
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [balance, setBalance] = useState(0);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const confettiRef = useRef<any>(null);
 
   const loadData = useCallback(async () => {
     const walletData = await walletService.loadExistingWallet();
@@ -40,15 +51,36 @@ export default function WalletScreen() {
       description: bet.eventName,
       timestamp: bet.settledAt || bet.createdAt,
     }));
-    setTransactions(txs.sort((a, b) => b.timestamp - a.timestamp).slice(0, 10));
+
+    const chainTxs = transactionService.getTransactionHistory();
+    const chainTransactions: Transaction[] = chainTxs.map(tx => ({
+      id: tx.hash,
+      type: tx.type === 'send' ? 'withdraw' : 'deposit',
+      amount: parseFloat(tx.amount),
+      currency: 'ETH',
+      description: tx.type === 'send' ? `Sent to ${tx.to.slice(0, 8)}...` : `Received from ${tx.from.slice(0, 8)}...`,
+      timestamp: tx.timestamp,
+    }));
+
+    const allTxs = [...txs, ...chainTransactions];
+    setTransactions(allTxs.sort((a, b) => b.timestamp - a.timestamp).slice(0, 20));
+
+    const wins = settledBets.filter(b => b.outcome === 'win').reduce((sum, b) => sum + b.amount * (b.odds - 1), 0);
+    const losses = settledBets.filter(b => b.outcome === 'loss').reduce((sum, b) => sum + b.amount, 0);
+    setBalance(Math.round(1000 + wins - losses));
   }, []);
 
   useEffect(() => {
     loadData();
 
-    const unsub = bettingService.onBetUpdate(() => {
+    const unsub = bettingService.onBetUpdate((bet) => {
+      if (bet.status === 'settled' && bet.outcome === 'win') {
+        setShowConfetti(true);
+        setTimeout(() => setShowConfetti(false), 3000);
+      }
       const bettingStats = bettingService.getStats();
       setStats(bettingStats);
+      loadData();
     });
 
     return () => unsub();
@@ -60,9 +92,44 @@ export default function WalletScreen() {
     setRefreshing(false);
   }, [loadData]);
 
-  const handleCopyAddress = () => {
+  const handleCopyAddress = async () => {
     if (wallet?.address) {
-      Alert.alert("Copied", "Wallet address copied to clipboard");
+      await Clipboard.setStringAsync(wallet.address);
+      Alert.alert("Copied!", "Wallet address copied to clipboard");
+    }
+  };
+
+  const handleDeposit = () => {
+    setDepositModalVisible(true);
+  };
+
+  const handleWithdraw = () => {
+    setWithdrawModalVisible(true);
+  };
+
+  const handleSendTransaction = async () => {
+    if (!withdrawAddress || !withdrawAmount) {
+      Alert.alert("Error", "Please enter address and amount");
+      return;
+    }
+
+    try {
+      const result = await transactionService.sendTransaction(
+        withdrawAddress,
+        withdrawAmount
+      );
+      
+      if (result.success) {
+        Alert.alert("Success", `Transaction sent! Hash: ${result.hash?.slice(0, 16)}...`);
+        setWithdrawModalVisible(false);
+        setWithdrawAddress("");
+        setWithdrawAmount("");
+        loadData();
+      } else {
+        Alert.alert("Error", result.error || "Transaction failed");
+      }
+    } catch (error) {
+      Alert.alert("Error", "Failed to send transaction");
     }
   };
 
@@ -80,6 +147,17 @@ export default function WalletScreen() {
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top"]}>
       <Header title="WALLET" />
+
+      {showConfetti && (
+        <ConfettiCannon
+          ref={confettiRef}
+          count={100}
+          origin={{ x: 200, y: 0 }}
+          autoStart={true}
+          fadeOut={true}
+          colors={[Colors.primary, Colors.secondary, Colors.green, '#FFD700']}
+        />
+      )}
 
       <ScrollView 
         className="flex-1 px-4 pt-6"
@@ -105,14 +183,14 @@ export default function WalletScreen() {
                 className="text-xs uppercase tracking-widest mb-1"
                 style={{ color: Colors.mutedForeground }}
               >
-                Betting Stats
+                Balance
               </Text>
               <View className="flex-row items-baseline gap-2">
                 <Text className="text-3xl font-bold font-mono text-white">
-                  {stats.totalBets}
+                  {balance.toLocaleString()}
                 </Text>
                 <Text className="text-sm" style={{ color: Colors.mutedForeground }}>
-                  bets
+                  sats
                 </Text>
               </View>
               {stats.winRate > 0 && (
@@ -180,6 +258,7 @@ export default function WalletScreen() {
 
           <View className="flex-row gap-3">
             <Pressable
+              onPress={handleDeposit}
               className="flex-1 h-12 rounded-xl items-center justify-center flex-row gap-2"
               style={{ backgroundColor: Colors.primary }}
             >
@@ -189,6 +268,7 @@ export default function WalletScreen() {
               </Text>
             </Pressable>
             <Pressable
+              onPress={handleWithdraw}
               className="flex-1 h-12 rounded-xl items-center justify-center flex-row gap-2"
               style={{
                 backgroundColor: "transparent",
@@ -242,7 +322,9 @@ export default function WalletScreen() {
                           ? `${Colors.green}20`
                           : tx.type === "loss"
                           ? "rgba(239,68,68,0.2)"
-                          : `${Colors.primary}20`,
+                          : tx.type === "deposit"
+                          ? `${Colors.primary}20`
+                          : `${Colors.secondary}20`,
                     }}
                   >
                     <Ionicons
@@ -261,7 +343,9 @@ export default function WalletScreen() {
                           ? Colors.green
                           : tx.type === "loss"
                           ? "#ef4444"
-                          : Colors.primary
+                          : tx.type === "deposit"
+                          ? Colors.primary
+                          : Colors.secondary
                       }
                     />
                   </View>
@@ -278,14 +362,12 @@ export default function WalletScreen() {
                   className="font-mono font-bold"
                   style={{
                     color:
-                      tx.type === "loss"
+                      tx.type === "loss" || tx.type === "withdraw"
                         ? "#ef4444"
-                        : tx.type === "win"
-                        ? Colors.green
-                        : Colors.primary,
+                        : Colors.green,
                   }}
                 >
-                  {tx.type === "loss" ? "-" : "+"}{formatCurrency(tx.amount, tx.currency)}
+                  {tx.type === "loss" || tx.type === "withdraw" ? "-" : "+"}{formatCurrency(tx.amount, tx.currency)}
                 </Text>
               </View>
             ))
@@ -294,6 +376,166 @@ export default function WalletScreen() {
 
         <View className="h-24" />
       </ScrollView>
+
+      <Modal
+        visible={depositModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setDepositModalVisible(false)}
+      >
+        <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
+          <View 
+            className="rounded-t-3xl p-6"
+            style={{ backgroundColor: Colors.card }}
+          >
+            <View className="flex-row justify-between items-center mb-6">
+              <Text className="text-xl font-bold text-white">Deposit</Text>
+              <Pressable onPress={() => setDepositModalVisible(false)}>
+                <Ionicons name="close" size={24} color={Colors.foreground} />
+              </Pressable>
+            </View>
+
+            {wallet && (
+              <View className="items-center">
+                <View 
+                  className="p-4 rounded-xl mb-4"
+                  style={{ backgroundColor: 'white' }}
+                >
+                  <QRCode
+                    value={wallet.address}
+                    size={200}
+                    color="black"
+                    backgroundColor="white"
+                  />
+                </View>
+
+                <Text className="text-sm mb-2" style={{ color: Colors.mutedForeground }}>
+                  Your Wallet Address
+                </Text>
+                
+                <Pressable 
+                  onPress={handleCopyAddress}
+                  className="flex-row items-center gap-2 p-3 rounded-xl"
+                  style={{ backgroundColor: 'rgba(255,255,255,0.05)' }}
+                >
+                  <Text 
+                    className="font-mono text-xs" 
+                    style={{ color: Colors.primary }}
+                    numberOfLines={1}
+                  >
+                    {wallet.address}
+                  </Text>
+                  <Ionicons name="copy" size={16} color={Colors.primary} />
+                </Pressable>
+
+                <View className="mt-4 p-3 rounded-xl" style={{ backgroundColor: `${Colors.yellow}15` }}>
+                  <Text className="text-xs text-center" style={{ color: Colors.yellow }}>
+                    Send ETH or ERC-20 tokens to this address. Testnet only for now.
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            <Pressable
+              onPress={() => setDepositModalVisible(false)}
+              className="h-14 rounded-xl items-center justify-center mt-6"
+              style={{ backgroundColor: Colors.primary }}
+            >
+              <Text className="font-bold" style={{ color: Colors.primaryForeground }}>
+                Done
+              </Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={withdrawModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setWithdrawModalVisible(false)}
+      >
+        <View className="flex-1 justify-end" style={{ backgroundColor: 'rgba(0,0,0,0.7)' }}>
+          <View 
+            className="rounded-t-3xl p-6"
+            style={{ backgroundColor: Colors.card }}
+          >
+            <View className="flex-row justify-between items-center mb-6">
+              <Text className="text-xl font-bold text-white">Withdraw</Text>
+              <Pressable onPress={() => setWithdrawModalVisible(false)}>
+                <Ionicons name="close" size={24} color={Colors.foreground} />
+              </Pressable>
+            </View>
+
+            <View className="mb-4">
+              <Text className="text-sm mb-2" style={{ color: Colors.mutedForeground }}>
+                Recipient Address
+              </Text>
+              <TextInput
+                value={withdrawAddress}
+                onChangeText={setWithdrawAddress}
+                placeholder="0x..."
+                placeholderTextColor={Colors.mutedForeground}
+                className="h-12 rounded-xl px-4"
+                style={{
+                  backgroundColor: 'rgba(255,255,255,0.05)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,255,255,0.1)',
+                  color: Colors.foreground,
+                }}
+              />
+            </View>
+
+            <View className="mb-4">
+              <Text className="text-sm mb-2" style={{ color: Colors.mutedForeground }}>
+                Amount (ETH)
+              </Text>
+              <TextInput
+                value={withdrawAmount}
+                onChangeText={setWithdrawAmount}
+                placeholder="0.01"
+                placeholderTextColor={Colors.mutedForeground}
+                keyboardType="decimal-pad"
+                className="h-12 rounded-xl px-4"
+                style={{
+                  backgroundColor: 'rgba(255,255,255,0.05)',
+                  borderWidth: 1,
+                  borderColor: 'rgba(255,255,255,0.1)',
+                  color: Colors.foreground,
+                }}
+              />
+            </View>
+
+            <View className="p-3 rounded-xl mb-4" style={{ backgroundColor: `${Colors.yellow}15` }}>
+              <Text className="text-xs text-center" style={{ color: Colors.yellow }}>
+                Testnet mode: No real funds will be sent. For production, configure mainnet in settings.
+              </Text>
+            </View>
+
+            <Pressable
+              onPress={handleSendTransaction}
+              className="h-14 rounded-xl items-center justify-center flex-row gap-2"
+              style={{ backgroundColor: Colors.secondary }}
+            >
+              <Ionicons name="arrow-up" size={20} color={Colors.secondaryForeground} />
+              <Text className="font-bold" style={{ color: Colors.secondaryForeground }}>
+                Send Transaction
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={() => setWithdrawModalVisible(false)}
+              className="h-14 rounded-xl items-center justify-center mt-3"
+              style={{ 
+                borderWidth: 1,
+                borderColor: 'rgba(255,255,255,0.2)'
+              }}
+            >
+              <Text className="font-bold text-white">Cancel</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

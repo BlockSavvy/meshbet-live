@@ -167,6 +167,32 @@ All buttons have subtle glow effects using shadow with primary color.
 - Stats: Total Bets, Win Rate, Total Won
 - Menu items: History, Settings, Security, Help
 
+## Environment Variables
+
+Required environment variables:
+- `EXPO_PUBLIC_ODDS_API_KEY` - The Odds API key for live sports data (free tier: 500 requests/month)
+
+## Production Polishing (December 2024)
+
+### Phase 1: Real Sports Events - COMPLETE
+- The Odds API integrated with EXPO_PUBLIC_ODDS_API_KEY
+- Events screen shows real UFC, NFL, NBA, MLB, NHL, Soccer events
+- Odds displayed in American format with color coding
+- Offline caching with 5-minute TTL
+
+### Phase 2: Wallet Enhancement - COMPLETE
+- Deposit modal with QR code generation (react-native-qrcode-svg)
+- Withdraw modal with address/amount input
+- Real transaction service integration
+- Balance tracking from betting history
+- Confetti animation on bet wins
+
+### Phase 3: Betting Buttons - COMPLETE
+- CREATE BET button navigates to create-bet with eventId
+- JOIN ROOM button navigates to event room
+- Accept bet functionality in event room
+- Confetti animation on bet creation success
+
 ## Notes
 
 - The app is configured to run in web mode for Replit compatibility
@@ -174,3 +200,4 @@ All buttons have subtle glow effects using shadow with primary color.
 - Expo Go SDK 54+ is required for mobile testing
 - Custom RadarIcon component (SVG) used for MESH tab icon - matches Lucide Radar style
 - GitHub connector configured for BlockSavvy/meshbet-live repo access
+- TestFlight deployment: `npx eas-cli build --platform ios --profile testflight --auto-submit`
