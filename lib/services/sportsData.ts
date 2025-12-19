@@ -43,6 +43,15 @@ class SportsDataService {
     this.apiKey = key;
   }
 
+  private readonly SUPPORTED_SPORTS = [
+    'americanfootball_nfl',
+    'basketball_nba',
+    'mma_mixed_martial_arts',
+    'baseball_mlb',
+    'icehockey_nhl',
+    'soccer_usa_mls',
+  ];
+
   async getUpcomingEvents(sport: string = 'upcoming'): Promise<SportEvent[]> {
     const cacheKey = `events_${sport}`;
     const cached = this.cache.get(cacheKey);
@@ -57,29 +66,65 @@ class SportsDataService {
     }
 
     try {
-      const response = await fetch(
-        `${ODDS_API_BASE}/sports/${sport}/odds/?apiKey=${this.apiKey}&regions=us&markets=h2h`
-      );
+      let allEvents: SportEvent[] = [];
+      
+      if (sport === 'upcoming') {
+        const sportPromises = this.SUPPORTED_SPORTS.map(async (sportKey) => {
+          try {
+            const response = await fetch(
+              `${ODDS_API_BASE}/sports/${sportKey}/odds/?apiKey=${this.apiKey}&regions=us&markets=h2h`
+            );
+            if (response.ok) {
+              return await response.json();
+            }
+            return [];
+          } catch {
+            return [];
+          }
+        });
+        
+        const results = await Promise.all(sportPromises);
+        const flatResults = results.flat();
+        
+        allEvents = flatResults.map((event: any) => ({
+          id: event.id,
+          sport: event.sport_key,
+          sportTitle: event.sport_title,
+          homeTeam: event.home_team,
+          awayTeam: event.away_team,
+          commenceTime: event.commence_time,
+          bookmakers: event.bookmakers,
+        }));
+        
+        allEvents.sort((a, b) => 
+          new Date(a.commenceTime).getTime() - new Date(b.commenceTime).getTime()
+        );
+      } else {
+        const response = await fetch(
+          `${ODDS_API_BASE}/sports/${sport}/odds/?apiKey=${this.apiKey}&regions=us&markets=h2h`
+        );
 
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        allEvents = data.map((event: any) => ({
+          id: event.id,
+          sport: event.sport_key,
+          sportTitle: event.sport_title,
+          homeTeam: event.home_team,
+          awayTeam: event.away_team,
+          commenceTime: event.commence_time,
+          bookmakers: event.bookmakers,
+        }));
       }
 
-      const data = await response.json();
-      const events: SportEvent[] = data.map((event: any) => ({
-        id: event.id,
-        sport: event.sport_key,
-        sportTitle: event.sport_title,
-        homeTeam: event.home_team,
-        awayTeam: event.away_team,
-        commenceTime: event.commence_time,
-        bookmakers: event.bookmakers,
-      }));
-
-      this.cache.set(cacheKey, { events, timestamp: Date.now() });
+      console.log(`[SportsData] Fetched ${allEvents.length} events`);
+      this.cache.set(cacheKey, { events: allEvents, timestamp: Date.now() });
       await this.persistCache();
 
-      return events;
+      return allEvents.length > 0 ? allEvents : this.getMockEvents();
     } catch (error) {
       console.error('[SportsData] Failed to fetch events:', error);
       

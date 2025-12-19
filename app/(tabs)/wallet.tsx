@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { View, Text, Pressable, ScrollView, RefreshControl, Alert, Modal, TextInput, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import * as Clipboard from 'expo-clipboard';
+import Clipboard from '@react-native-clipboard/clipboard';
 import { Header } from "@/components/layout/Header";
 import { Colors } from "@/constants/Colors";
 import { walletService, WalletInfo } from "@/lib/services/wallet";
@@ -94,7 +94,7 @@ export default function WalletScreen() {
 
   const handleCopyAddress = async () => {
     if (wallet?.address) {
-      await Clipboard.setStringAsync(wallet.address);
+      Clipboard.setString(wallet.address);
       Alert.alert("Copied!", "Wallet address copied to clipboard");
     }
   };
@@ -113,10 +113,16 @@ export default function WalletScreen() {
       return;
     }
 
+    const parsedAmount = parseFloat(withdrawAmount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      Alert.alert("Error", "Please enter a valid amount");
+      return;
+    }
+
     try {
       const result = await transactionService.sendTransaction(
         withdrawAddress,
-        withdrawAmount
+        parsedAmount.toString()
       );
       
       if (result.success) {

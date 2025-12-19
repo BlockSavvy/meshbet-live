@@ -62,6 +62,7 @@ export default function CreateBetScreen() {
     if (bet) {
       setShowConfetti(true);
       setStep(3);
+      setTimeout(() => setShowConfetti(false), 4000);
     }
   };
 
