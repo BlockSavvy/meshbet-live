@@ -28,6 +28,12 @@ The app now has a stunning responsive web version that works alongside the mobil
 - **WebHero.tsx** - Landing page hero with headline, CTAs, and app download promo
 - **WebFeatures.tsx** - Feature grid showcasing offline/P2P/crypto/mesh capabilities
 - **WebLayout.tsx** - Layout wrapper for responsive rendering
+- **WebPricing.tsx** - Free vs Pro pricing comparison table
+
+### Monetization Components (components/)
+- **FeeBreakdown.tsx** - Visual breakdown of 0.75% platform fees (mobile-only)
+- **ProBadge.tsx** - Pro subscriber badge for profile
+- **UpgradeModal.tsx** - Pro upgrade modal with benefits and IAP purchase
 
 ### PWA Support
 - Manifest: public/manifest.json
@@ -90,6 +96,19 @@ The sidebar includes a notice that mesh/Bluetooth features work best in the nati
    - Gas estimation and tracking
    - Transaction history
    - Escrow support for bet stakes
+
+8. **fees.ts** - Platform Fee System (December 2024)
+   - 0.75% platform fee on settled bets
+   - Fee split: 60% treasury, 15% relay node tips, 25% reserve
+   - Transparent breakdown in bet confirmation/settlement UI
+   - Treasury stats tracking
+
+9. **subscription.ts** - MeshBet Pro Subscription (December 2024)
+   - RevenueCat integration for iOS/Android IAP
+   - $6.99/month Pro tier
+   - Pro features: HD priority, advanced stats, custom rooms, priority relays, exclusive props, venue mode
+   - Lightning payment option planned
+   - Graceful web fallback (directs to app stores)
 
 ## Screen Status (Mock Data Audit)
 

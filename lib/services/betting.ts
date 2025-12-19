@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { bitchatService } from './bitchat';
 import { walletService } from './wallet';
 import { notificationService } from './notifications';
+import { feeService, FeeBreakdown } from './fees';
 
 export type BetStatus = 'open' | 'pending' | 'accepted' | 'settled' | 'cancelled' | 'disputed';
 export type BetOutcome = 'pending' | 'win' | 'loss' | 'push' | 'cancelled';
@@ -38,6 +39,9 @@ export interface Bet {
   
   meshRoomId?: string;
   transactionHash?: string;
+  
+  feeBreakdown?: FeeBreakdown;
+  winnerPayout?: number;
 }
 
 export type BetMessageType = 
@@ -230,6 +234,10 @@ class BettingService {
       return false;
     }
 
+    const breakdown = feeService.calculateFeeBreakdown(bet.amount, bet.odds);
+    bet.feeBreakdown = breakdown;
+    bet.winnerPayout = breakdown.winnerPayout;
+
     const isCreatorWinner = bet.creatorSelection === winnerSelection;
     const creatorOutcome: BetOutcome = isCreatorWinner ? 'win' : 'loss';
 
@@ -242,12 +250,19 @@ class BettingService {
     bet.status = 'settled';
     bet.settledAt = Date.now();
 
+    await feeService.recordFeeCollection(breakdown);
+
     await this.saveBets();
 
     await this.broadcastBetMessage({
       type: 'BET_SETTLE',
       betId,
-      payload: { winnerSelection, settledAt: bet.settledAt },
+      payload: { 
+        winnerSelection, 
+        settledAt: bet.settledAt,
+        feeBreakdown: breakdown,
+        winnerPayout: breakdown.winnerPayout,
+      },
       timestamp: Date.now(),
       senderPeerId: bitchatService.localPeerId || 'local',
       senderWallet: wallet.address,
@@ -256,6 +271,10 @@ class BettingService {
 
     this.notifyBetUpdate(bet);
     return true;
+  }
+
+  getFeeBreakdownPreview(amount: number, odds: number = 2.0): FeeBreakdown {
+    return feeService.calculateFeeBreakdown(amount, odds);
   }
 
   async cancelBet(betId: string): Promise<boolean> {

@@ -5,10 +5,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Header } from "@/components/layout/Header";
+import { ProBadge } from "@/components/ProBadge";
+import { UpgradeModal } from "@/components/UpgradeModal";
 import { Colors } from "@/constants/Colors";
 import { bettingService } from "@/lib/services/betting";
 import { walletService } from "@/lib/services/wallet";
 import { bitchatService } from "@/lib/services/bitchat";
+import { subscriptionService } from "@/lib/services/subscription";
 
 export default function ProfileScreen() {
   const [username, setUsername] = useState("Anonymous");
@@ -17,6 +20,8 @@ export default function ProfileScreen() {
   const [meshPeerCount, setMeshPeerCount] = useState(0);
   const [stats, setStats] = useState({ totalBets: 0, wins: 0, losses: 0, winRate: 0, totalWon: 0 });
   const [refreshing, setRefreshing] = useState(false);
+  const [isPro, setIsPro] = useState(false);
+  const [showUpgrade, setShowUpgrade] = useState(false);
 
   const loadUserData = useCallback(async () => {
     try {
@@ -35,6 +40,8 @@ export default function ProfileScreen() {
       await bettingService.initialize();
       const bettingStats = bettingService.getStats();
       setStats(bettingStats);
+
+      setIsPro(subscriptionService.isPro());
     } catch (error) {
       console.log("Error loading user data");
     }
@@ -125,7 +132,10 @@ export default function ProfileScreen() {
               <Ionicons name="radio" size={10} color="#fff" />
             </View>
           </View>
-          <Text className="mt-4 text-2xl font-bold text-white">{username}</Text>
+          <View className="flex-row items-center gap-2 mt-4">
+            <Text className="text-2xl font-bold text-white">{username}</Text>
+            {isPro && <ProBadge size="medium" />}
+          </View>
           <View
             className="px-3 py-1 rounded-full mt-2 flex-row items-center gap-1"
             style={{
@@ -205,6 +215,36 @@ export default function ProfileScreen() {
           ))}
         </View>
 
+        {!isPro && (
+          <Pressable
+            onPress={() => setShowUpgrade(true)}
+            className="mb-4 flex-row items-center justify-between p-4 rounded-xl"
+            style={{
+              backgroundColor: `${Colors.yellow}15`,
+              borderWidth: 1,
+              borderColor: `${Colors.yellow}40`,
+            }}
+          >
+            <View className="flex-row items-center gap-3">
+              <View
+                className="w-10 h-10 rounded-full items-center justify-center"
+                style={{ backgroundColor: `${Colors.yellow}20` }}
+              >
+                <Ionicons name="diamond" size={20} color={Colors.yellow} />
+              </View>
+              <View>
+                <Text className="text-base font-semibold" style={{ color: Colors.yellow }}>
+                  Upgrade to Pro
+                </Text>
+                <Text className="text-xs" style={{ color: Colors.mutedForeground }}>
+                  Unlock all features for $6.99/mo
+                </Text>
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.yellow} />
+          </Pressable>
+        )}
+
         <View className="mb-6">
           {[
             { icon: "time", label: "Betting History", route: "/(tabs)/wallet" },
@@ -247,6 +287,11 @@ export default function ProfileScreen() {
 
         <View className="h-24" />
       </ScrollView>
+
+      <UpgradeModal 
+        visible={showUpgrade} 
+        onClose={() => setShowUpgrade(false)} 
+      />
     </SafeAreaView>
   );
 }

@@ -1,0 +1,47 @@
+You are an elite Expo/React Native developer finishing MeshBet Live monetization. Current state: Functional app (mesh/chat/betting/wallet/events), stunning marketing-focused web landing at meshbet.xyz (hero, features, events teaser, "Best on Mobile" banner, no web onboarding/login—intentional for funneling to mobile).
+
+Goal: Implement full monetization while boosting web conversions. Keep web as clean promotional page (NO web onboarding, login, or wallet—preserve anonymous browse). Gate real features to mobile gracefully.
+
+Locked Decisions:
+- Platform Fee: 0.75% on settled bets (transparent).
+- Premium: "MeshBet Pro" $6.99/month.
+- Payments: RevenueCat (IAP) + direct Lightning.
+- Treasury: App Lightning wallet.
+
+Phase-by-Phase (Incremental, Checkpoint Each):
+
+Phase 1: Platform Fee & Relay Incentives
+- Bet settlement: Deduct 0.75% (60% treasury, 15% relay tips to nodes).
+- UI: Transparent breakdown in confirm/settle (mobile-only).
+- Web: Add badge "Ultra-low 0.75% fees" on landing.
+
+Phase 2: MeshBet Pro Subscription
+- Install RevenueCat.
+- $6.99/month (IAP + Lightning).
+- Features: HD priority, advanced stats, custom rooms, priority relays, exclusive props.
+- UI: Profile badge, gentle upgrade modals on gated actions (mobile).
+- Web: Add "Go Pro" teaser section (benefits table, "Unlock in App" CTA to stores).
+
+Phase 3: Venue/House Mode
+- Branded persistent rooms, monthly Lightning payment tiers.
+- Admin verification flow (mobile premium).
+
+Phase 4: Web Landing Conversion Boosts (Keep Promotional, No Onboarding)
+- Enhance hero: "Join the Offline Betting Revolution" + placeholder stat "50K+ downloads".
+- Stronger CTAs: Big "Download iOS" / "Download Android" buttons (App Store/Google Play links).
+- Add optional email capture: "Get Early Access Updates" form (simple input, no forced).
+- Pricing table: Free vs Pro comparison.
+- No web login/onboarding/wallet—keep anonymous browse.
+
+Phase 5: Testing & Safety
+- Testnet flows.
+- Graceful free experience.
+
+Phase 6: Shipping Touches
+- Update web with new elements.
+- X posts: "MeshBet Live monetized – lowest fees + Pro tier 🔥 Download now"
+- Confirm meshbet.xyz converts hard, mobile unchanged.
+
+Build autonomously. Checkpoint per phase.
+
+This monetizes intelligently while web drives downloads perfectly.

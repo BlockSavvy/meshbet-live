@@ -11,6 +11,8 @@ import { streamingService } from "@/lib/services/streaming";
 import { sportsDataService } from "@/lib/services/sportsData";
 import { walletService } from "@/lib/services/wallet";
 import { bettingService } from "@/lib/services/betting";
+import { feeService } from "@/lib/services/fees";
+import { subscriptionService } from "@/lib/services/subscription";
 import "../global.css";
 
 SplashScreen.preventAutoHideAsync();
@@ -37,6 +39,8 @@ export default function RootLayout() {
         
         await walletService.initialize();
         await walletService.loadExistingWallet();
+        await feeService.initialize();
+        await subscriptionService.initialize();
         await bettingService.initialize();
         await notificationService.initialize();
         await streamingService.initialize();

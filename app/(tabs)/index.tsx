@@ -5,7 +5,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Colors } from "@/constants/Colors";
 import { Header } from "@/components/layout/Header";
-import { WebHero, WebFeatures } from "@/components/web";
+import { WebHero, WebFeatures, WebPricing } from "@/components/web";
 import { bettingService, Bet } from "@/lib/services/betting";
 import { bitchatService, BitchatPeer } from "@/lib/services/bitchat";
 import { sportsDataService, SportEvent } from "@/lib/services/sportsData";
@@ -84,6 +84,7 @@ export default function HomeScreen() {
       >
         {isDesktop && <WebHero />}
         {isDesktop && <WebFeatures />}
+        {isDesktop && <WebPricing />}
         
         <View style={{ paddingHorizontal: isDesktop ? 48 : 0, maxWidth: isDesktop ? 1400 : undefined, marginHorizontal: isDesktop ? 'auto' : 0 }}>
           <View

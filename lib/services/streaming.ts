@@ -1,4 +1,5 @@
 import { bitchatService } from './bitchat';
+import { subscriptionService } from './subscription';
 
 export type StreamStatus = 'idle' | 'connecting' | 'streaming' | 'buffering' | 'paused' | 'ended';
 
@@ -52,6 +53,14 @@ class StreamingService {
     eventId: string;
     quality?: 'low' | 'medium' | 'high';
   }): Promise<StreamMetadata | null> {
+    if (params.quality === 'high') {
+      const check = subscriptionService.requirePro('hdPriority');
+      if (!check.allowed) {
+        console.warn('[Streaming] HD quality requires Pro:', check.reason);
+        params.quality = 'medium';
+      }
+    }
+    
     const streamId = `stream_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
     
     const metadata: StreamMetadata = {

@@ -15,4 +15,5 @@ export const Colors = {
   border: "rgba(255, 255, 255, 0.1)",
   green: "#22c55e",
   yellow: "#eab308",
+  red: "#ef4444",
 };

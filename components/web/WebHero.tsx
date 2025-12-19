@@ -114,10 +114,10 @@ export function WebHero() {
               marginBottom: 20,
             }}
           >
-            Bet on{' '}
-            <Text style={{ color: Colors.primary }}>Live Sports</Text>
-            {'\n'}with Your{' '}
-            <Text style={{ color: Colors.secondary }}>Crew</Text>
+            Join the{' '}
+            <Text style={{ color: Colors.primary }}>Offline Betting</Text>
+            {'\n'}
+            <Text style={{ color: Colors.secondary }}>Revolution</Text>
           </Text>
 
           <Text
@@ -177,7 +177,15 @@ export function WebHero() {
             </Pressable>
           </View>
 
-          <View style={{ flexDirection: 'row', gap: 32, marginTop: 40 }}>
+          <View style={{ flexDirection: 'row', gap: 24, marginTop: 40, flexWrap: 'wrap' }}>
+            <View>
+              <Text style={{ fontSize: 28, fontWeight: 'bold', color: Colors.green }}>
+                0.75%
+              </Text>
+              <Text style={{ fontSize: 12, color: Colors.mutedForeground }}>
+                Ultra-Low Fees
+              </Text>
+            </View>
             <View>
               <Text style={{ fontSize: 28, fontWeight: 'bold', color: Colors.primary }}>
                 100%
@@ -195,11 +203,11 @@ export function WebHero() {
               </Text>
             </View>
             <View>
-              <Text style={{ fontSize: 28, fontWeight: 'bold', color: Colors.green }}>
-                Crypto
+              <Text style={{ fontSize: 28, fontWeight: 'bold', color: Colors.yellow }}>
+                50K+
               </Text>
               <Text style={{ fontSize: 12, color: Colors.mutedForeground }}>
-                Secured Bets
+                Downloads
               </Text>
             </View>
           </View>

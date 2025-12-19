@@ -12,6 +12,12 @@ interface Feature {
 
 const FEATURES: Feature[] = [
   {
+    icon: 'wallet',
+    title: 'Ultra-Low 0.75% Fees',
+    description: 'The lowest platform fees anywhere. 60% to treasury, 15% to relay nodes that power the mesh.',
+    color: Colors.green,
+  },
+  {
     icon: 'bluetooth',
     title: 'Bluetooth Mesh',
     description: 'Connect with nearby bettors without internet. Perfect for stadiums, bars, and parties.',
@@ -21,7 +27,7 @@ const FEATURES: Feature[] = [
     icon: 'lock-closed',
     title: 'Crypto Secured',
     description: 'Every bet is cryptographically signed. No trust required, just math.',
-    color: Colors.green,
+    color: Colors.primary,
   },
   {
     icon: 'flash',
@@ -40,12 +46,6 @@ const FEATURES: Feature[] = [
     title: 'Live Odds',
     description: 'Real-time odds from major sportsbooks. NFL, NBA, UFC, and more.',
     color: Colors.primary,
-  },
-  {
-    icon: 'videocam',
-    title: 'P2P Streaming',
-    description: 'Share your screen with the mesh. Host watch parties without a server.',
-    color: Colors.secondary,
   },
 ];
 
