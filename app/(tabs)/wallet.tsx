@@ -52,13 +52,13 @@ export default function WalletScreen() {
       timestamp: bet.settledAt || bet.createdAt,
     }));
 
-    const chainTxs = transactionService.getTransactionHistory();
+    const chainTxs = transactionService.getTransactions();
     const chainTransactions: Transaction[] = chainTxs.map(tx => ({
-      id: tx.hash,
-      type: tx.type === 'send' ? 'withdraw' : 'deposit',
+      id: tx.id,
+      type: tx.type === 'escrow_lock' ? 'withdraw' : 'deposit',
       amount: parseFloat(tx.amount),
       currency: 'ETH',
-      description: tx.type === 'send' ? `Sent to ${tx.to.slice(0, 8)}...` : `Received from ${tx.from.slice(0, 8)}...`,
+      description: tx.type === 'escrow_lock' ? `Sent to ${tx.toAddress.slice(0, 8)}...` : `Received from ${tx.fromAddress.slice(0, 8)}...`,
       timestamp: tx.timestamp,
     }));
 
