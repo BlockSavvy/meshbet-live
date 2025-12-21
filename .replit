@@ -48,3 +48,4 @@ publicDir = "dist"
 
 [userenv.shared]
 EXPO_PUBLIC_ODDS_API_KEY = "f379e46c6724101a84cae0c0a1ff6c81"
+EXPO_PUBLIC_REVENUECAT_IOS_KEY = "test_HclnKVaKbNaMirjPtnrsUdAJWXN"

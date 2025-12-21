@@ -10,12 +10,15 @@ interface Props {
   feature?: string;
 }
 
+type ProductType = 'monthly' | 'yearly' | 'lifetime';
+
 export function UpgradeModal({ visible, onClose, feature }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<ProductType>('yearly');
   
   const benefits = subscriptionService.getProBenefits();
-  const price = subscriptionService.getProPrice();
+  const products = subscriptionService.getProducts();
   
   const handleUpgrade = async () => {
     if (Platform.OS === 'web') {
@@ -26,7 +29,7 @@ export function UpgradeModal({ visible, onClose, feature }: Props) {
     setLoading(true);
     setError(null);
     
-    const result = await subscriptionService.purchasePro();
+    const result = await subscriptionService.purchaseProduct(selectedProduct);
     
     setLoading(false);
     
@@ -80,9 +83,39 @@ export function UpgradeModal({ visible, onClose, feature }: Props) {
               </Text>
             </View>
             
-            <View style={styles.priceContainer}>
-              <Text style={styles.price}>{price.displayPrice}</Text>
-              <Text style={styles.priceNote}>Cancel anytime</Text>
+            <View style={styles.productSelector}>
+              {(['yearly', 'monthly', 'lifetime'] as ProductType[]).map((type) => {
+                const product = products[type];
+                const isSelected = selectedProduct === type;
+                return (
+                  <Pressable
+                    key={type}
+                    onPress={() => setSelectedProduct(type)}
+                    style={[
+                      styles.productOption,
+                      isSelected && styles.productOptionSelected,
+                    ]}
+                  >
+                    {type === 'yearly' && (
+                      <View style={styles.savingsBadge}>
+                        <Text style={styles.savingsText}>BEST VALUE</Text>
+                      </View>
+                    )}
+                    <View style={styles.radioOuter}>
+                      {isSelected && <View style={styles.radioInner} />}
+                    </View>
+                    <View style={styles.productInfo}>
+                      <Text style={[styles.productName, isSelected && styles.productNameSelected]}>
+                        {type.charAt(0).toUpperCase() + type.slice(1)}
+                      </Text>
+                      <Text style={styles.productPrice}>{product.displayPrice}</Text>
+                    </View>
+                    {type === 'lifetime' && (
+                      <Text style={styles.lifetimeNote}>One-time</Text>
+                    )}
+                  </Pressable>
+                );
+              })}
             </View>
             
             <View style={styles.benefits}>
@@ -188,24 +221,74 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingHorizontal: 20,
   },
-  priceContainer: {
-    alignItems: 'center',
+  productSelector: {
+    gap: 12,
     marginBottom: 24,
-    padding: 16,
-    borderRadius: 16,
-    backgroundColor: `${Colors.primary}10`,
-    borderWidth: 1,
-    borderColor: `${Colors.primary}30`,
   },
-  price: {
-    fontSize: 32,
+  productOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    position: 'relative',
+  },
+  productOptionSelected: {
+    borderColor: Colors.primary,
+    backgroundColor: `${Colors.primary}10`,
+  },
+  savingsBadge: {
+    position: 'absolute',
+    top: -8,
+    right: 12,
+    backgroundColor: Colors.green,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  savingsText: {
+    fontSize: 10,
     fontWeight: 'bold',
+    color: Colors.background,
+  },
+  radioOuter: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: Colors.mutedForeground,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: Colors.primary,
+  },
+  productInfo: {
+    flex: 1,
+  },
+  productName: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.foreground,
+  },
+  productNameSelected: {
     color: Colors.primary,
   },
-  priceNote: {
-    fontSize: 12,
+  productPrice: {
+    fontSize: 14,
     color: Colors.mutedForeground,
-    marginTop: 4,
+    marginTop: 2,
+  },
+  lifetimeNote: {
+    fontSize: 12,
+    color: Colors.yellow,
+    fontWeight: '600',
   },
   benefits: {
     gap: 16,

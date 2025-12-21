@@ -27,10 +27,34 @@ const STORAGE_KEYS = {
   PRO_FEATURES: 'meshbet_pro_features',
 };
 
+const ENTITLEMENT_ID = 'AIDDDMAP Pro';
+
+const PRODUCTS = {
+  monthly: {
+    id: 'monthly',
+    price: 6.99,
+    displayPrice: '$6.99/month',
+    period: 'month',
+  },
+  yearly: {
+    id: 'yearly',
+    price: 59.99,
+    displayPrice: '$59.99/year',
+    period: 'year',
+    savings: '28%',
+  },
+  lifetime: {
+    id: 'lifetime',
+    price: 149.99,
+    displayPrice: '$149.99 once',
+    period: 'forever',
+  },
+};
+
 const PRO_PRICE = {
-  monthly: 6.99,
-  productId: 'meshbet_pro_monthly',
-  displayPrice: '$6.99/month',
+  monthly: PRODUCTS.monthly.price,
+  productId: PRODUCTS.monthly.id,
+  displayPrice: PRODUCTS.monthly.displayPrice,
 };
 
 const FREE_FEATURES: ProFeatures = {
@@ -95,18 +119,23 @@ class SubscriptionService {
     
     try {
       const customerInfo = await this.purchasesSDK.getCustomerInfo();
-      const activeEntitlement = customerInfo.entitlements.active['pro'];
+      const activeEntitlement = customerInfo.entitlements.active[ENTITLEMENT_ID];
       
       if (activeEntitlement) {
+        const expirationDate = activeEntitlement.expirationDate 
+          ? new Date(activeEntitlement.expirationDate).getTime()
+          : undefined;
+        
         this.status = {
           tier: 'pro',
           isActive: true,
-          expiresAt: new Date(activeEntitlement.expirationDate).getTime(),
+          expiresAt: expirationDate,
           paymentMethod: 'iap',
           productId: activeEntitlement.productIdentifier,
         };
         await this.saveStatus();
         this.notifyListeners();
+        console.log('[Subscription] Synced Pro status, product:', activeEntitlement.productIdentifier);
       }
     } catch (error) {
       console.error('[Subscription] Failed to sync status:', error);
@@ -137,7 +166,19 @@ class SubscriptionService {
     }
   }
 
-  async purchasePro(): Promise<{ success: boolean; error?: string }> {
+  async getOfferings(): Promise<any> {
+    if (!this.purchasesSDK) return null;
+    
+    try {
+      const offerings = await this.purchasesSDK.getOfferings();
+      return offerings.current;
+    } catch (error) {
+      console.error('[Subscription] Failed to get offerings:', error);
+      return null;
+    }
+  }
+
+  async purchaseProduct(productId: 'monthly' | 'yearly' | 'lifetime'): Promise<{ success: boolean; error?: string }> {
     if (Platform.OS === 'web') {
       return { success: false, error: 'Please use the mobile app to subscribe' };
     }
@@ -148,26 +189,33 @@ class SubscriptionService {
 
     try {
       const offerings = await this.purchasesSDK.getOfferings();
-      const proPackage = offerings.current?.availablePackages.find(
-        (pkg: any) => pkg.product.identifier === PRO_PRICE.productId
+      const targetProduct = PRODUCTS[productId];
+      const pkg = offerings.current?.availablePackages.find(
+        (p: any) => p.product.identifier === targetProduct.id
       );
 
-      if (!proPackage) {
-        return { success: false, error: 'Pro subscription not found' };
+      if (!pkg) {
+        return { success: false, error: `${productId} subscription not found` };
       }
 
-      const { customerInfo } = await this.purchasesSDK.purchasePackage(proPackage);
+      const { customerInfo } = await this.purchasesSDK.purchasePackage(pkg);
       
-      if (customerInfo.entitlements.active['pro']) {
+      if (customerInfo.entitlements.active[ENTITLEMENT_ID]) {
+        const entitlement = customerInfo.entitlements.active[ENTITLEMENT_ID];
+        const expirationDate = entitlement.expirationDate 
+          ? new Date(entitlement.expirationDate).getTime()
+          : undefined;
+        
         this.status = {
           tier: 'pro',
           isActive: true,
-          expiresAt: new Date(customerInfo.entitlements.active['pro'].expirationDate).getTime(),
+          expiresAt: expirationDate,
           paymentMethod: 'iap',
-          productId: PRO_PRICE.productId,
+          productId: targetProduct.id,
         };
         await this.saveStatus();
         this.notifyListeners();
+        console.log('[Subscription] Purchased:', productId);
         return { success: true };
       }
 
@@ -181,6 +229,10 @@ class SubscriptionService {
     }
   }
 
+  async purchasePro(): Promise<{ success: boolean; error?: string }> {
+    return this.purchaseProduct('monthly');
+  }
+
   async restorePurchases(): Promise<{ success: boolean; restored: boolean; error?: string }> {
     if (!this.purchasesSDK) {
       return { success: false, restored: false, error: 'Subscription service not available' };
@@ -189,15 +241,22 @@ class SubscriptionService {
     try {
       const customerInfo = await this.purchasesSDK.restorePurchases();
       
-      if (customerInfo.entitlements.active['pro']) {
+      if (customerInfo.entitlements.active[ENTITLEMENT_ID]) {
+        const entitlement = customerInfo.entitlements.active[ENTITLEMENT_ID];
+        const expirationDate = entitlement.expirationDate 
+          ? new Date(entitlement.expirationDate).getTime()
+          : undefined;
+        
         this.status = {
           tier: 'pro',
           isActive: true,
-          expiresAt: new Date(customerInfo.entitlements.active['pro'].expirationDate).getTime(),
+          expiresAt: expirationDate,
           paymentMethod: 'iap',
+          productId: entitlement.productIdentifier,
         };
         await this.saveStatus();
         this.notifyListeners();
+        console.log('[Subscription] Restored purchase:', entitlement.productIdentifier);
         return { success: true, restored: true };
       }
 
@@ -206,6 +265,10 @@ class SubscriptionService {
       console.error('[Subscription] Restore failed:', error);
       return { success: false, restored: false, error: error.message };
     }
+  }
+
+  getProducts(): typeof PRODUCTS {
+    return PRODUCTS;
   }
 
   async activateLightningPayment(transactionId: string, durationDays: number = 30): Promise<void> {
