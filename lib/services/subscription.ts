@@ -27,7 +27,7 @@ const STORAGE_KEYS = {
   PRO_FEATURES: 'meshbet_pro_features',
 };
 
-const ENTITLEMENT_ID = 'AIDDDMAP Pro';
+const ENTITLEMENT_ID = 'MeshBet Pro';
 
 const PRODUCTS = {
   monthly: {
