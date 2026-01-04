@@ -55,6 +55,10 @@ The sidebar includes a notice that mesh/Bluetooth features work best in the nati
 1. **bitchat.ts** - Mesh networking via expo-bitchat
    - `initialize()`, `startServices()`, `startDiscovery()`
    - Event listeners: `onPeerConnected`, `onPeerDisconnected`, `onStatusChange`
+   - **Protocol routing**: `registerStreamHandler()`, `registerBetHandler()` for centralized message dispatch
+   - `processMessage()` filters STREAM_* and BET_* protocols before reaching UI listeners
+   - Local message echo on `sendMessage()` so sender sees their own messages
+   - `hydratePeers()` emits to listeners for already-connected peers
    - Mock fallback for web preview (generates fake peers after 2s delay)
    - Real Bluetooth mesh on native iOS/Android builds
 
@@ -79,9 +83,11 @@ The sidebar includes a notice that mesh/Bluetooth features work best in the nati
 
 5. **streaming.ts** - P2P Video Streaming
    - Chunked transfer (16KB chunks, 30-chunk buffer)
-   - Stream metadata broadcasting
-   - Quality settings (low/medium/high)
+   - Stream metadata broadcasting with periodic re-announce (every 15s)
+   - Re-announces when new peers connect so late joiners discover streams
+   - Quality settings (low/medium/high) - HD gated for Pro subscribers
    - Host/viewer management
+   - Registers protocol handler with bitchatService on initialize()
 
 6. **notifications.ts** - Push Notifications
    - Expo Notifications integration
