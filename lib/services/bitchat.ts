@@ -26,6 +26,10 @@ export interface BitchatChannel {
 type MessageListener = (message: BitchatMessage) => void;
 type PeerListener = (peer: BitchatPeer) => void;
 type StatusListener = (status: 'connected' | 'disconnected' | 'scanning') => void;
+type ProtocolHandler = (data: any) => void;
+
+const STREAM_PROTOCOL_TYPES = ['STREAM_ANNOUNCE', 'STREAM_CHUNK', 'STREAM_END', 'STREAM_REQUEST', 'STREAM_QUALITY'];
+const BET_PROTOCOL_TYPES = ['BET_PROPOSAL', 'BET_ACCEPT', 'BET_SETTLE', 'BET_CANCEL'];
 
 class BitchatService {
   private isRunning = false;
@@ -35,8 +39,47 @@ class BitchatService {
   private peerConnectedListeners: Set<PeerListener> = new Set();
   private peerDisconnectedListeners: Set<PeerListener> = new Set();
   private statusListeners: Set<StatusListener> = new Set();
+  private streamProtocolHandler: ProtocolHandler | null = null;
+  private betProtocolHandler: ProtocolHandler | null = null;
   private BitchatAPI: any = null;
   public localPeerId: string = `peer_${Math.random().toString(36).substr(2, 8)}`;
+
+  registerStreamHandler(handler: ProtocolHandler): () => void {
+    this.streamProtocolHandler = handler;
+    return () => { this.streamProtocolHandler = null; };
+  }
+
+  registerBetHandler(handler: ProtocolHandler): () => void {
+    this.betProtocolHandler = handler;
+    return () => { this.betProtocolHandler = null; };
+  }
+
+  private processMessage(msg: BitchatMessage): void {
+    const content = msg.content;
+    
+    if (content.startsWith('{') && content.includes('"type":')) {
+      try {
+        const parsed = JSON.parse(content);
+        if (parsed.type) {
+          if (STREAM_PROTOCOL_TYPES.includes(parsed.type)) {
+            if (this.streamProtocolHandler) {
+              this.streamProtocolHandler(content);
+            }
+            return;
+          }
+          if (BET_PROTOCOL_TYPES.includes(parsed.type)) {
+            if (this.betProtocolHandler) {
+              this.betProtocolHandler(content);
+            }
+            return;
+          }
+        }
+      } catch (e) {
+      }
+    }
+    
+    this.messageListeners.forEach(listener => listener(msg));
+  }
 
   async initialize() {
     if (Platform.OS === 'web') {
@@ -93,7 +136,7 @@ class BitchatService {
           timestamp: message.timestamp || Date.now(),
           isPrivate: message.isPrivate || false,
         };
-        this.messageListeners.forEach(listener => listener(msg));
+        this.processMessage(msg);
       });
 
       this.BitchatAPI.addPeerConnectedListener((peer: any) => {
@@ -142,17 +185,18 @@ class BitchatService {
   }
 
   async sendMessage(content: string, channel: string = '#general'): Promise<boolean> {
+    const localMsg: BitchatMessage = {
+      id: `${Date.now()}_${Math.random().toString(36).substr(2, 6)}`,
+      content,
+      sender: 'self',
+      senderNickname: this.nickname,
+      channel,
+      timestamp: Date.now(),
+      isPrivate: false,
+    };
+
     if (Platform.OS === 'web') {
-      const mockMsg: BitchatMessage = {
-        id: `${Date.now()}`,
-        content,
-        sender: 'self',
-        senderNickname: this.nickname,
-        channel,
-        timestamp: Date.now(),
-        isPrivate: false,
-      };
-      this.messageListeners.forEach(listener => listener(mockMsg));
+      this.processMessage(localMsg);
       return true;
     }
 
@@ -160,6 +204,7 @@ class BitchatService {
 
     try {
       await this.BitchatAPI.sendMessage(content, [], channel);
+      this.processMessage(localMsg);
       return true;
     } catch (error) {
       console.error('[Bitchat] Failed to send message:', error);
@@ -260,8 +305,10 @@ class BitchatService {
   async hydratePeers(): Promise<void> {
     const peers = await this.getConnectedPeers();
     peers.forEach(peer => {
-      if (!this.peers.has(peer.peerID)) {
-        this.peers.set(peer.peerID, peer);
+      const isNew = !this.peers.has(peer.peerID);
+      this.peers.set(peer.peerID, peer);
+      if (isNew) {
+        this.peerConnectedListeners.forEach(listener => listener(peer));
       }
     });
   }

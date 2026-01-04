@@ -44,6 +44,22 @@ export default function MeshTab() {
   const getDistanceFromStrength = (strength: number) => 0.3 + (1 - strength / 100) * 0.5;
 
   useEffect(() => {
+    const loadExistingPeers = async () => {
+      await bitchatService.hydratePeers();
+      const existingPeers = bitchatService.connectedPeers;
+      if (existingPeers.length > 0) {
+        const displayPeers = existingPeers.map(peer => ({
+          ...peer,
+          strength: convertRssiToStrength(peer.rssi),
+          angle: getRandomAngle(),
+          distance: getDistanceFromStrength(convertRssiToStrength(peer.rssi)),
+        }));
+        setPeers(displayPeers);
+        setMeshStatus('connected');
+      }
+    };
+    loadExistingPeers();
+
     const unsubPeerConnected = bitchatService.onPeerConnected((peer) => {
       const strength = convertRssiToStrength(peer.rssi);
       const displayPeer: DisplayPeer = {

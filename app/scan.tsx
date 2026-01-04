@@ -32,6 +32,16 @@ export default function MeshScanScreen() {
       if (!bitchatService.running) {
         await bitchatService.startServices('MeshBet_User');
       }
+      
+      const existingPeers = bitchatService.connectedPeers;
+      if (existingPeers.length > 0) {
+        const displayPeers = existingPeers.map(peer => ({
+          ...peer,
+          strength: convertRssiToStrength(peer.rssi),
+        }));
+        setPeers(displayPeers);
+      }
+      
       await bitchatService.startDiscovery();
     };
 

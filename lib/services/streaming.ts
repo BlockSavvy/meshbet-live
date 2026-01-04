@@ -43,9 +43,29 @@ class StreamingService {
 
   private currentStreamId: string | null = null;
   private isHost: boolean = false;
+  private announceInterval: ReturnType<typeof setInterval> | null = null;
+  private unsubPeerConnected: (() => void) | null = null;
 
   async initialize(): Promise<void> {
-    console.log('[Streaming] Service initialized');
+    bitchatService.registerStreamHandler((data: string) => {
+      this.handleIncomingMessage(data);
+    });
+    
+    this.unsubPeerConnected = bitchatService.onPeerConnected(() => {
+      if (this.isHost && this.currentStreamId) {
+        const stream = this.activeStreams.get(this.currentStreamId);
+        if (stream) {
+          this.broadcastMessage({
+            type: 'STREAM_ANNOUNCE',
+            payload: stream,
+            timestamp: Date.now(),
+            senderPeerId: stream.hostPeerId,
+          });
+        }
+      }
+    });
+    
+    console.log('[Streaming] Service initialized with protocol handler');
   }
 
   async startStream(params: {
@@ -87,6 +107,18 @@ class StreamingService {
       senderPeerId: metadata.hostPeerId,
     });
 
+    this.announceInterval = setInterval(() => {
+      const currentStream = this.activeStreams.get(streamId);
+      if (currentStream && this.isHost) {
+        this.broadcastMessage({
+          type: 'STREAM_ANNOUNCE',
+          payload: currentStream,
+          timestamp: Date.now(),
+          senderPeerId: currentStream.hostPeerId,
+        });
+      }
+    }, 15000);
+
     this.notifyStreamUpdate();
     console.log('[Streaming] Started stream:', streamId);
     return metadata;
@@ -95,6 +127,11 @@ class StreamingService {
   async stopStream(streamId: string): Promise<void> {
     const stream = this.activeStreams.get(streamId);
     if (!stream) return;
+
+    if (this.announceInterval) {
+      clearInterval(this.announceInterval);
+      this.announceInterval = null;
+    }
 
     await this.broadcastMessage({
       type: 'STREAM_END',
