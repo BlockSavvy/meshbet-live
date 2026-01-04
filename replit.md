@@ -80,6 +80,9 @@ The sidebar includes a notice that mesh/Bluetooth features work best in the nati
    - Cryptographic signatures via wallet service
    - Bet status: open, pending, accepted, settled, cancelled
    - Stats tracking: wins, losses, win rate
+   - Registers bet handler with bitchatService on initialize()
+   - Periodic re-broadcast of open bets every 20s for late joiners
+   - Re-broadcasts when new peers connect
 
 5. **streaming.ts** - P2P Video Streaming
    - Chunked transfer (16KB chunks, 30-chunk buffer)

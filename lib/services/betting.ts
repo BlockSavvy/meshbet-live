@@ -72,10 +72,44 @@ class BettingService {
   private bets: Map<string, Bet> = new Map();
   private messageListeners: ((message: BetMessage) => void)[] = [];
   private betUpdateListeners: ((bet: Bet) => void)[] = [];
+  private syncInterval: ReturnType<typeof setInterval> | null = null;
+  private unsubPeerConnected: (() => void) | null = null;
 
   async initialize(): Promise<void> {
     await this.loadBets();
-    console.log('[Betting] Service initialized');
+    
+    bitchatService.registerBetHandler((data: string) => {
+      this.handleIncomingMessage(data);
+    });
+    
+    this.unsubPeerConnected = bitchatService.onPeerConnected(() => {
+      this.broadcastOpenBets();
+    });
+    
+    this.syncInterval = setInterval(() => {
+      this.broadcastOpenBets();
+    }, 20000);
+    
+    console.log('[Betting] Service initialized with protocol handler');
+  }
+  
+  private async broadcastOpenBets(): Promise<void> {
+    const openBets = this.getOpenBets();
+    const wallet = walletService.getAddress();
+    
+    for (const bet of openBets) {
+      if (bet.creator.walletAddress === wallet) {
+        await this.broadcastBetMessage({
+          type: 'BET_PROPOSAL',
+          betId: bet.id,
+          payload: bet,
+          timestamp: Date.now(),
+          senderPeerId: bet.creator.peerId,
+          senderWallet: wallet || '',
+          signature: bet.creator.signature || '',
+        });
+      }
+    }
   }
 
   private async loadBets(): Promise<void> {
